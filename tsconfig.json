@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    /* ── Core ───────────────────────────────────────────── */
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    /* ── Strictness ─────────────────────────────────────── */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    /* ── Interop ─────────────────────────────────────────── */
+    "esModuleInterop": true,
+    // "allowSyntheticDefaultImports": true, // ✦ REMOVED — implied by esModuleInterop, redundant
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true, // ⚠ Requires "import type" for type-only imports;
+    //   also makes esModuleInterop largely decorative
+    //   (kept for downstream tooling compatibility)
+
+    /* ── Transpiler compatibility ────────────────────────── */
+    "isolatedModules": true, // ✨ ADDED — safe to use with esbuild / swc / tsx;
+    //   verbatimModuleSyntax implies this, but explicit
+    //   is better for monorepo / tooling clarity
+
+    /* ── Performance ─────────────────────────────────────── */
+    "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    /* ── Output ──────────────────────────────────────────── */
+    // Drop "declaration" + "declarationMap" if this is a standalone service, not a library.
+    // Keep them only if this package is imported by other TS packages.
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false, // ✨ ADDED — keep false; stripping comments breaks
+    //   JSDoc-based runtime tools (e.g. Swagger, tsyringe)
+
+    /* ── DX ──────────────────────────────────────────────── */
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": false // Only flip true if using a bundler (Vite, Bun, etc.)
+  },
+
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/*.spec.ts"]
+}
