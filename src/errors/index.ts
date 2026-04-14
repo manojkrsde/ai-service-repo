@@ -3,7 +3,7 @@ export {
   type SerializedError,
   type ErrorSeverity,
   type ErrorCategory,
-} from "./base.error.js";
+} from "./base.errors.js";
 
 export {
   BadRequestError,
@@ -19,3 +19,8 @@ export {
   ServiceUnavailableError,
   type HttpError,
 } from "./http.errors.js";
+
+export {
+  ToolNotFoundError,
+  ToolAlreadyRegisteredError,
+} from "./tool.errors.js";

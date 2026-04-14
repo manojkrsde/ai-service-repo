@@ -1,9 +1,52 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-import { registerPingTool } from "./ping.tool.js";
+import {
+  executeTool,
+  toMcpTool,
+  toolRegistry,
+  type AnyToolDefinition,
+  type ToolContext,
+  type ToolOutcome,
+} from "../../tools/index.js";
+
+function toCallToolResult(outcome: ToolOutcome): CallToolResult {
+  if (outcome.ok) {
+    const text =
+      typeof outcome.data === "string"
+        ? outcome.data
+        : JSON.stringify(outcome.data);
+    return {
+      content: [{ type: "text", text }],
+      isError: false,
+    };
+  }
+
+  const details =
+    outcome.code === "VALIDATION" && outcome.issues
+      ? ` ${JSON.stringify(outcome.issues)}`
+      : "";
+
+  return {
+    content: [
+      { type: "text", text: `[${outcome.code}] ${outcome.message}${details}` },
+    ],
+    isError: true,
+  };
+}
+
+function bindTool(server: McpServer, def: AnyToolDefinition): void {
+  const { name, config } = toMcpTool(def);
+
+  server.registerTool(name, config, async (rawInput: unknown) => {
+    const ctx: ToolContext = {};
+    const outcome = await executeTool(name, rawInput, ctx);
+    return toCallToolResult(outcome);
+  });
+}
 
 export function registerTools(server: McpServer): void {
-  registerPingTool(server);
-  // registerSearchTool(server);  ← future tools slot in here
-  // registerSummarizeTool(server);
+  for (const def of toolRegistry.list()) {
+    bindTool(server, def);
+  }
 }

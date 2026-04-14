@@ -2,7 +2,7 @@ import {
   type ErrorCategory,
   type ErrorSeverity,
   BaseError,
-} from "./base.error.js";
+} from "./base.errors.js";
 
 const makeHttpError = (
   defaultStatusCode: number,
