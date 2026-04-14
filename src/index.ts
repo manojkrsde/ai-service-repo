@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 
 import config from "./config/env.js";
 import logger from "./config/logger.js";
-import { stripTrailingSlash } from "./helpers/trailing-slash.js";
+import { stripTrailingSlash } from "./helpers/trailing.slash.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
 
 import router from "./routes/index.js";
