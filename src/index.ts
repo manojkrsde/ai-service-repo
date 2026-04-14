@@ -5,6 +5,8 @@ import logger from "./config/logger.js";
 import { stripTrailingSlash } from "./helpers/trailing-slash.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
 
+import router from "./routes/index.js";
+
 const app: Express = express();
 
 app.use(express.json({ limit: "10mb" }));
@@ -23,6 +25,8 @@ app.get("/health", (_req, res): void => {
     },
   });
 });
+
+app.use("/", router);
 
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
