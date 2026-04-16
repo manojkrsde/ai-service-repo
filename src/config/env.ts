@@ -1,14 +1,7 @@
-/**
- * Centralized environment configuration
- * - Loads & validates all env variables
- * - Provides defaults + strict type safety
- * - Single source of truth across all environments
- */
 import dotenv from "dotenv";
 import { str, int, url, enumerator } from "../helpers/env.helper.js";
 dotenv.config();
 
-// Types
 type Environment = "development" | "production" | "test";
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
 
@@ -37,17 +30,22 @@ const config = {
   },
 
   database: {
-    url: url("DATABASE_URL", ""),
-    host: str("DB_HOST", "localhost"),
-    port: int("DB_PORT", 5432),
-    name: str("DB_NAME", "app_db"),
-    user: str("DB_USER", "postgres"),
-    password: str("DB_PASSWORD", ""),
+    url_local: url("DATABASE_URL_LOCAL", ""),
+    url_staging: url("DATABASE_URL_STAGING", ""),
+    url_prod: url("DATABASE_URL_PROD", ""),
   },
 
   auth: {
-    jwtSecret: str("JWT_SECRET", "secret"),
+    jwtSecretKey: str("JWT_SECRET_KEY", "lakheragroupservices"),
     jwtExpiry: str("JWT_EXPIRY", "7d"),
+  },
+
+  oauth: {
+    mcpServiceKey: str("MCP_SERVICE_KEY", ""),
+  },
+
+  services: {
+    apiGateway: url("API_GATEWAY_URL", "http://localhost:8002"),
   },
 
   cache: {
