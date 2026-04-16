@@ -94,7 +94,6 @@ export async function streamablePostHandler(
       cachedSignature: resolved.signature,
     };
   } catch (err) {
-    console.log(err);
     logger.error(
       { err, email: tokenRecord.email },
       "Failed to resolve user auth on session init",

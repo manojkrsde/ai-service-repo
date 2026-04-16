@@ -27,6 +27,7 @@ import {
   markAuthCodeUsed,
   createAccessToken,
 } from "../../services/oauthStore.service.js";
+import { parseAxiosError } from "../../helpers/axiosError.helper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
@@ -87,14 +88,14 @@ router.post("/proxy/login", async (req, res) => {
     );
     res.status(response.status).json(response.data);
   } catch (err: any) {
-    if (err.response) {
-      res.status(err.response.status).json(err.response.data);
-    } else {
-      logger.error({ err }, "Failed to proxy login request");
-      res
-        .status(StatusCodes.BAD_GATEWAY)
-        .json({ success: false, message: "Failed to reach user service" });
-    }
+    const { status, message, errors, raw } = parseAxiosError(
+      err,
+      "user-service",
+    );
+    logger.error({ status, message, raw }, "Proxy login failed");
+    res
+      .status(status)
+      .json({ success: false, message, ...(errors && { errors }) });
   }
 });
 
@@ -113,14 +114,11 @@ router.post("/proxy/verify-otp", async (req, res) => {
     );
     res.status(response.status).json(response.data);
   } catch (err: any) {
-    if (err.response) {
-      res.status(err.response.status).json(err.response.data);
-    } else {
-      logger.error({ err }, "Failed to proxy OTP verification");
-      res
-        .status(StatusCodes.BAD_GATEWAY)
-        .json({ success: false, message: "Failed to reach user service" });
-    }
+    const { status, message, errors } = parseAxiosError(err, "user-service");
+    logger.error({ status, message }, "Proxy OTP verification failed");
+    res
+      .status(status)
+      .json({ success: false, message, ...(errors && { errors }) });
   }
 });
 
@@ -136,14 +134,9 @@ router.post("/proxy/resend-otp", async (req, res) => {
     );
     res.status(response.status).json(response.data);
   } catch (err: any) {
-    if (err.response) {
-      res.status(err.response.status).json(err.response.data);
-    } else {
-      logger.error({ err }, "Failed to proxy resend OTP request");
-      res
-        .status(StatusCodes.BAD_GATEWAY)
-        .json({ success: false, message: "Failed to reach user service" });
-    }
+    const { status, message } = parseAxiosError(err, "user-service");
+    logger.error({ status, message }, "Proxy resend OTP failed");
+    res.status(status).json({ success: false, message });
   }
 });
 
@@ -185,8 +178,6 @@ router.get("/callback", async (req, res) => {
     { email, clientId: client_id },
     "OAuth authorization code created",
   );
-
-  console.log("Record: ", record);
 
   const redirectUrl = new URL(redirect_uri);
   redirectUrl.searchParams.set("code", record.code);
