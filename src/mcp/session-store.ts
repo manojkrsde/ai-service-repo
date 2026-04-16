@@ -1,10 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-//  Streamable HTTP session
+export interface SessionAuth {
+  email: string;
+  userId: number;
+  companyId: number;
+  companyType: string;
+  role: string;
+  cachedToken: string;
+  cachedSignature: string;
+}
+
 export interface StreamableSession {
   transport: StreamableHTTPServerTransport;
   server: McpServer;
+  auth: SessionAuth;
 }
 
 class StreamableSessionStore {

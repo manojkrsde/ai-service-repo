@@ -1,0 +1,277 @@
+/**
+ * OAuth 2.1 routes for MCP authentication.
+ *
+ * Implements the standard OAuth 2.1 + PKCE flow that MCP clients
+ * (Claude Desktop, Cursor) expect:
+ *
+ *   /.well-known/oauth-protected-resource   → discovery
+ *   /.well-known/oauth-authorization-server  → metadata
+ *   /authorize                               → serves login page
+ *   /callback                                → creates auth code
+ *   /token                                   → exchanges code for access token
+ */
+
+import { createHash, randomUUID } from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
+
+import express, { Router } from "express";
+import { StatusCodes } from "http-status-codes";
+
+import axiosInstance from "../../utils/axios.instance.js";
+import config from "../../config/env.js";
+import logger from "../../config/logger.js";
+import {
+  createAuthCode,
+  getAuthCode,
+  markAuthCodeUsed,
+  createAccessToken,
+} from "../../services/oauthStore.service.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const router = Router();
+
+router.use(express.static(path.join(__dirname, "public")));
+
+router.get("/.well-known/oauth-protected-resource", (_, res) => {
+  const baseUrl = config.app.baseUrl;
+  res.status(StatusCodes.OK).json({
+    resource: baseUrl,
+    authorization_servers: [baseUrl],
+  });
+});
+
+router.get("/.well-known/oauth-authorization-server", (_, res) => {
+  const baseUrl = config.app.baseUrl;
+  res.status(StatusCodes.OK).json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
+    registration_endpoint: `${baseUrl}/register`,
+    token_endpoint_auth_methods_supported: ["none"],
+    scopes_supported: ["mcp:tools"],
+    response_types_supported: ["code"],
+    response_modes_supported: ["query"],
+    grant_types_supported: ["authorization_code"],
+    code_challenge_methods_supported: ["S256"],
+  });
+});
+
+router.post("/register", (req, res) => {
+  const clientId = `mcp-client-${randomUUID()}`;
+  res.status(StatusCodes.CREATED).json({
+    client_id: clientId,
+    client_name: req.body?.client_name || "MCP Client",
+    redirect_uris: req.body?.redirect_uris || [],
+    grant_types: ["authorization_code"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+  });
+});
+
+router.get("/authorize", (_req, res) => {
+  res
+    .status(StatusCodes.OK)
+    .sendFile(path.join(__dirname, "public", "authorize.html"));
+});
+
+router.post("/proxy/login", async (req, res) => {
+  try {
+    const apiGatewayUrl = config.services.apiGateway;
+    const response = await axiosInstance.post(
+      `${apiGatewayUrl}/api/userService/login`,
+      {
+        email: req.body.email,
+        password: req.body.password,
+      },
+    );
+    res.status(response.status).json(response.data);
+  } catch (err: any) {
+    if (err.response) {
+      res.status(err.response.status).json(err.response.data);
+    } else {
+      logger.error({ err }, "Failed to proxy login request");
+      res
+        .status(StatusCodes.BAD_GATEWAY)
+        .json({ success: false, message: "Failed to reach user service" });
+    }
+  }
+});
+
+router.post("/proxy/verify-otp", async (req, res) => {
+  try {
+    const apiGatewayUrl = config.services.apiGateway;
+    const response = await axiosInstance.post(
+      `${apiGatewayUrl}/api/userService/internal/verify-user-otp`,
+      {
+        email: req.body.email,
+        otp: req.body.otp,
+      },
+      {
+        headers: { "x-service-key": config.oauth.mcpServiceKey },
+      },
+    );
+    res.status(response.status).json(response.data);
+  } catch (err: any) {
+    if (err.response) {
+      res.status(err.response.status).json(err.response.data);
+    } else {
+      logger.error({ err }, "Failed to proxy OTP verification");
+      res
+        .status(StatusCodes.BAD_GATEWAY)
+        .json({ success: false, message: "Failed to reach user service" });
+    }
+  }
+});
+
+router.post("/proxy/resend-otp", async (req, res) => {
+  try {
+    const apiGatewayUrl = config.services.apiGateway;
+    const response = await axiosInstance.post(
+      `${apiGatewayUrl}/api/userService/resend_otp`,
+      {
+        email: req.body.email,
+        password: req.body.password,
+      },
+    );
+    res.status(response.status).json(response.data);
+  } catch (err: any) {
+    if (err.response) {
+      res.status(err.response.status).json(err.response.data);
+    } else {
+      logger.error({ err }, "Failed to proxy resend OTP request");
+      res
+        .status(StatusCodes.BAD_GATEWAY)
+        .json({ success: false, message: "Failed to reach user service" });
+    }
+  }
+});
+
+router.get("/callback", async (req, res) => {
+  const {
+    email,
+    user_id,
+    company_id,
+    company_type,
+    role_char,
+    code_challenge,
+    code_challenge_method,
+    state,
+    redirect_uri,
+    client_id,
+  } = req.query as Record<string, string>;
+
+  if (!email || !redirect_uri || !code_challenge) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: "Missing required parameters",
+    });
+    return;
+  }
+
+  const record = await createAuthCode({
+    email,
+    userId: parseInt(user_id || "0", 10),
+    companyId: parseInt(company_id || "0", 10),
+    companyType: company_type || "Primary",
+    roleChar: role_char || "Employee",
+    clientId: client_id || "unknown",
+    redirectUri: redirect_uri,
+    codeChallenge: code_challenge,
+    codeChallengeMethod: code_challenge_method || "S256",
+  });
+
+  logger.info(
+    { email, clientId: client_id },
+    "OAuth authorization code created",
+  );
+
+  console.log("Record: ", record);
+
+  const redirectUrl = new URL(redirect_uri);
+  redirectUrl.searchParams.set("code", record.code);
+  if (state) redirectUrl.searchParams.set("state", state);
+
+  res.redirect(redirectUrl.toString());
+});
+
+router.post("/token", async (req, res) => {
+  const { code, code_verifier, grant_type } = req.body;
+
+  if (grant_type !== "authorization_code") {
+    res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ error: "unsupported_grant_type" });
+    return;
+  }
+
+  if (!code || !code_verifier) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      error: "invalid_request",
+      error_description: "Missing code or code_verifier",
+    });
+    return;
+  }
+
+  const authCode = await getAuthCode(code);
+
+  if (!authCode) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      error: "invalid_grant",
+      error_description: "Invalid or expired authorization code",
+    });
+    return;
+  }
+
+  if (authCode.used) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      error: "invalid_grant",
+      error_description: "Authorization code already used",
+    });
+    return;
+  }
+
+  if (Date.now() > authCode.expiresAt) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      error: "invalid_grant",
+      error_description: "Authorization code expired",
+    });
+    return;
+  }
+
+  const computedChallenge = createHash("sha256")
+    .update(code_verifier)
+    .digest("base64url");
+
+  if (computedChallenge !== authCode.codeChallenge) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      error: "invalid_grant",
+      error_description: "PKCE verification failed",
+    });
+    return;
+  }
+
+  await markAuthCodeUsed(code);
+
+  const tokenRecord = await createAccessToken({
+    email: authCode.email,
+    userId: authCode.userId,
+    companyId: authCode.companyId,
+    companyType: authCode.companyType,
+    roleChar: authCode.roleChar,
+    clientId: authCode.clientId,
+  });
+
+  logger.info(
+    { email: authCode.email, clientId: authCode.clientId },
+    "OAuth access token issued",
+  );
+
+  res.status(StatusCodes.OK).json({
+    access_token: tokenRecord.token,
+    token_type: "Bearer",
+    scope: "mcp:tools",
+  });
+});
+
+export default router;

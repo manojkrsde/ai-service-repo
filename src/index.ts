@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import { StatusCodes } from "http-status-codes";
 
 import config from "./config/env.js";
 import logger from "./config/logger.js";
@@ -9,12 +10,12 @@ import router from "./routes/index.js";
 
 const app: Express = express();
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(stripTrailingSlash);
 
 app.get("/health", (_req, res): void => {
-  res.status(200).json({
+  res.status(StatusCodes.OK).json({
     success: true,
     message: "Server is healthy.",
     meta: {

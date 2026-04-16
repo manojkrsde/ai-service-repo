@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { SessionAuth } from "../mcp/session-store.js";
 
 export interface ToolAnnotations {
   readOnlyHint?: boolean;
@@ -10,6 +11,10 @@ export interface ToolAnnotations {
 export interface ToolContext {
   requestId?: string;
   sessionId?: string;
+  sessionAuth?: SessionAuth;
+  companyId?: number;
+  companyType?: string;
+  userId?: number;
 }
 
 export type ToolInputSchema = z.ZodObject<z.ZodRawShape>;

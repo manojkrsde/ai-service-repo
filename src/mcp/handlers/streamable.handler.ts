@@ -4,10 +4,14 @@ import type { Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { StatusCodes } from "http-status-codes";
 
+import config from "../../config/env.js";
 import logger from "../../config/logger.js";
+import { getAccessToken } from "../../services/oauthStore.service.js";
+import { resolveUserAuth } from "../../helpers/userAuth.client.js";
 import { createMcpServer } from "../server.js";
-import { streamableSessionStore } from "../session-store.js";
+import { streamableSessionStore, type SessionAuth } from "../session-store.js";
 
 export async function streamablePostHandler(
   req: Request,
@@ -21,7 +25,7 @@ export async function streamablePostHandler(
 
     if (session === undefined) {
       logger.warn({ sessionId }, "Streamable MCP message for unknown session");
-      res.status(404).json({
+      res.status(StatusCodes.NOT_FOUND).json({
         success: false,
         message: `No active streamable session for id: ${sessionId}`,
       });
@@ -35,7 +39,7 @@ export async function streamablePostHandler(
 
   // ── New session
   if (!isInitializeRequest(req.body)) {
-    res.status(400).json({
+    res.status(StatusCodes.BAD_REQUEST).json({
       success: false,
       message:
         "First request on a new streamable session must be an InitializeRequest",
@@ -43,25 +47,79 @@ export async function streamablePostHandler(
     return;
   }
 
-  const server = createMcpServer();
+  // Extract access token from Authorization header
+  const rawToken = (req.headers["authorization"] as string | undefined)
+    ?.replace(/^Bearer\s+/i, "")
+    .trim();
 
-  // `const` is safe here — onsessioninitialized fires after this assignment,
-  // so the closure always captures the fully constructed transport reference.
+  if (!rawToken) {
+    const baseUrl = config.app.baseUrl.replace(/\/+$/, "");
+    res
+      .status(401)
+      .header(
+        "WWW-Authenticate",
+        `Bearer realm="MCP Server", resource_metadata_uri="${baseUrl}/.well-known/oauth-protected-resource"`,
+      )
+      .json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Missing Bearer token" },
+        id: null,
+      });
+    return;
+  }
+
+  // Look up the access token in the OAuth store
+  const tokenRecord = await getAccessToken(rawToken);
+
+  if (!tokenRecord) {
+    res.status(StatusCodes.FORBIDDEN).json({
+      jsonrpc: "2.0",
+      error: { code: -32001, message: "Invalid or expired access token" },
+      id: null,
+    });
+    return;
+  }
+
+  // Resolve the user's current backend credentials
+  let auth: SessionAuth;
+  try {
+    const resolved = await resolveUserAuth(tokenRecord.email);
+    auth = {
+      email: tokenRecord.email,
+      userId: tokenRecord.userId,
+      companyId: tokenRecord.companyId,
+      companyType: tokenRecord.companyType,
+      role: tokenRecord.roleChar,
+      cachedToken: resolved.jwtToken,
+      cachedSignature: resolved.signature,
+    };
+  } catch (err) {
+    console.log(err);
+    logger.error(
+      { err, email: tokenRecord.email },
+      "Failed to resolve user auth on session init",
+    );
+    res.status(StatusCodes.UNAUTHORIZED).json({
+      success: false,
+      message:
+        "Could not resolve backend credentials. User may need to log in to the web app.",
+    });
+    return;
+  }
+
+  const server = createMcpServer(auth);
+
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (newSessionId) => {
-      streamableSessionStore.set(newSessionId, { transport, server });
+      streamableSessionStore.set(newSessionId, { transport, server, auth });
       logger.info(
-        { sessionId: newSessionId },
+        { sessionId: newSessionId, userId: auth.userId, email: auth.email },
         "Streamable MCP session created",
       );
     },
   });
 
-  // Set onclose before connect so it is always defined when the SDK reads it.
-  // Cast to Transport is required: SDK types onclose as `(() => void) | undefined`
-  // on the concrete class, which conflicts with the `() => void` on the Transport
-  // interface under exactOptionalPropertyTypes. This is an SDK-side type gap.
   transport.onclose = (): void => {
     const sid = transport.sessionId;
     if (sid !== undefined) {
@@ -84,7 +142,7 @@ export async function streamableGetHandler(
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (sessionId === undefined) {
-    res.status(400).json({
+    res.status(StatusCodes.BAD_REQUEST).json({
       success: false,
       message: "Missing required header: mcp-session-id",
     });
@@ -98,7 +156,7 @@ export async function streamableGetHandler(
       { sessionId },
       "Streamable MCP SSE request for unknown session",
     );
-    res.status(404).json({
+    res.status(StatusCodes.NOT_FOUND).json({
       success: false,
       message: `No active streamable session for id: ${sessionId}`,
     });
@@ -116,7 +174,7 @@ export async function streamableDeleteHandler(
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (sessionId === undefined) {
-    res.status(400).json({
+    res.status(StatusCodes.BAD_REQUEST).json({
       success: false,
       message: "Missing required header: mcp-session-id",
     });
@@ -127,7 +185,7 @@ export async function streamableDeleteHandler(
 
   if (session === undefined) {
     logger.warn({ sessionId }, "Streamable MCP DELETE for unknown session");
-    res.status(404).json({
+    res.status(StatusCodes.NOT_FOUND).json({
       success: false,
       message: `No active streamable session for id: ${sessionId}`,
     });
@@ -138,5 +196,7 @@ export async function streamableDeleteHandler(
   streamableSessionStore.delete(sessionId);
 
   logger.info({ sessionId }, "Streamable MCP session explicitly terminated");
-  res.status(200).json({ success: true, message: "Session terminated" });
+  res
+    .status(StatusCodes.OK)
+    .json({ success: true, message: "Session terminated" });
 }
