@@ -1,5 +1,15 @@
 import "./definitions/ping.tool.js";
 
+// Supporting (service-agnostic)
+import "./definitions/listEmployees.tool.js";
+import "./definitions/listDepartments.tool.js";
+
+// Leads service (all groups)
+import "./definitions/leadsService/index.js";
+
+// Attendance service (all groups)
+import "./definitions/attendanceService/index.js";
+
 export { toolRegistry } from "./registry.js";
 export { executeTool } from "./executor.js";
 export { toMcpTool, type McpToolProjection } from "./adapters/mcp.js";
