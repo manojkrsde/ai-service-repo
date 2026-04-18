@@ -55,7 +55,7 @@ export async function streamablePostHandler(
   if (!rawToken) {
     const baseUrl = config.app.baseUrl.replace(/\/+$/, "");
     res
-      .status(401)
+      .status(StatusCodes.UNAUTHORIZED)
       .header(
         "WWW-Authenticate",
         `Bearer realm="MCP Server", resource_metadata_uri="${baseUrl}/.well-known/oauth-protected-resource"`,
