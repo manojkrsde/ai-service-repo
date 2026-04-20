@@ -4,6 +4,7 @@ import { StatusCodes } from "http-status-codes";
 import config from "./config/env.js";
 import logger from "./config/logger.js";
 import { stripTrailingSlash } from "./helpers/trailing.slash.js";
+import { requestLogger } from "./middlewares/request-logger.middleware.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
 
 import router from "./routes/index.js";
@@ -13,6 +14,7 @@ const app: Express = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(stripTrailingSlash);
+app.use(requestLogger);
 
 app.get("/health", (_req, res): void => {
   res.status(StatusCodes.OK).json({
