@@ -9,7 +9,7 @@ import {
   type ToolContext,
   type ToolOutcome,
 } from "../../tools/index.js";
-import type { SessionAuth } from "../session-store.js";
+import type { SessionAuth } from "../auth.types.js";
 
 function toCallToolResult(outcome: ToolOutcome): CallToolResult {
   if (outcome.ok) {

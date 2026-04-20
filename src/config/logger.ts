@@ -1,6 +1,7 @@
 import pino, { type Logger } from "pino";
 import pretty from "pino-pretty";
 import config from "./env.js";
+import { createMongoLogSink } from "../utils/log.sink.js";
 
 const prettyStream = pretty({
   colorize: true,
@@ -9,17 +10,19 @@ const prettyStream = pretty({
   sync: true,
 });
 
-const devStreams: pino.StreamEntry[] = [
-  { level: "trace", stream: prettyStream }, // all logs → pretty console
-  { level: "error", stream: process.stderr }, // error + fatal → stderr as well
-];
+const streams: pino.StreamEntry[] = config.app.isDev
+  ? [{ level: "trace", stream: prettyStream }]
+  : [
+      { level: "info", stream: process.stdout },
+      { level: "error", stream: process.stderr },
+    ];
 
-const prodStreams: pino.StreamEntry[] = [
-  { level: "info", stream: process.stdout }, // info+ → stdout (Datadog/Loki picks up)
-  { level: "error", stream: process.stderr }, // error+ → stderr
-  // Uncomment once pino-mongodb is set up:
-  // { level: "warn", stream: await buildMongoStream() },
-];
+if (config.logging.mongo.uri) {
+  streams.push({
+    level: config.logging.mongo.level,
+    stream: createMongoLogSink(),
+  });
+}
 
 const logger: Logger = pino(
   {
@@ -33,14 +36,25 @@ const logger: Logger = pino(
       level: (label) => ({ level: label }),
     },
     redact: {
-      paths: ["*.password", "*.token", "*.secret", "*.authorization"],
+      paths: [
+        "*.password",
+        "*.token",
+        "*.secret",
+        "*.authorization",
+        "*.jwt",
+        "*.jwtToken",
+        "*.accessToken",
+        "*.cachedToken",
+        "*.cachedJwt",
+        "*.cachedSignature",
+        "*.signature",
+        "req.headers.authorization",
+        "req.headers.cookie",
+      ],
       censor: "[REDACTED]",
     },
   },
-  pino.multistream(
-    config.app.isDev ? devStreams : prodStreams,
-    { dedupe: true }, // if multiple streams share a level, only write once
-  ),
+  pino.multistream(streams, { dedupe: true }),
 );
 
 export default logger;
