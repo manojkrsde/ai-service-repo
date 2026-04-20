@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { SessionAuth } from "../mcp/session-store.js";
+import type { SessionAuth } from "../mcp/auth.types.js";
 
 export interface ToolAnnotations {
   readOnlyHint?: boolean;

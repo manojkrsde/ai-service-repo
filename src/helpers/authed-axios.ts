@@ -9,7 +9,7 @@
 import { AxiosError } from "axios";
 
 import logger from "../config/logger.js";
-import type { SessionAuth } from "../mcp/session-store.js";
+import type { SessionAuth } from "../mcp/auth.types.js";
 import axiosInstance from "../utils/axios.instance.js";
 import { parseAxiosError } from "./axiosError.helper.js";
 import { resolveUserAuth } from "./userAuth.client.js";

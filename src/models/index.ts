@@ -3,6 +3,7 @@ import { Sequelize } from "sequelize";
 import configEnv from "../config/env.js";
 
 import { McpAccessTokens } from "./McpAccessTokens.js";
+import { McpAuthCache } from "./McpAuthCache.js";
 import { McpAuthCodes } from "./McpAuthCodes.js";
 import { McpToolLogs } from "./McpToolLogs.js";
 
@@ -33,6 +34,7 @@ const db = {
   sequelize,
   Sequelize,
   McpAccessTokens: McpAccessTokens.initModel(sequelize),
+  McpAuthCache: McpAuthCache.initModel(sequelize),
   McpAuthCodes: McpAuthCodes.initModel(sequelize),
   McpToolLogs: McpToolLogs.initModel(sequelize),
 };
@@ -45,4 +47,11 @@ Object.values(db).forEach((model: any) => {
 
 export default db;
 
-export { sequelize, Sequelize, McpAccessTokens, McpAuthCodes, McpToolLogs };
+export {
+  sequelize,
+  Sequelize,
+  McpAccessTokens,
+  McpAuthCache,
+  McpAuthCodes,
+  McpToolLogs,
+};
