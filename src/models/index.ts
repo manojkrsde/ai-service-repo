@@ -1,3 +1,4 @@
+import pg from "pg";
 import { Sequelize } from "sequelize";
 import configEnv from "../config/env.js";
 
@@ -17,6 +18,7 @@ const sequelize = new Sequelize(
   dbUrl || "postgres://postgres:123456@localhost:5432/ai_db",
   {
     dialect: "postgres",
+    dialectModule: pg,
     logging: false,
     pool: {
       max: 20,
