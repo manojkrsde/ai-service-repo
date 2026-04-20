@@ -81,7 +81,11 @@ process.on("unhandledRejection", (reason: unknown): void => {
   process.exit(1);
 });
 
-start().catch((err: unknown): void => {
-  logger.fatal({ err }, "Fatal error during startup");
-  process.exit(1);
-});
+if (process.env["VERCEL"] !== "1") {
+  start().catch((err: unknown): void => {
+    logger.fatal({ err }, "Fatal error during startup");
+    process.exit(1);
+  });
+}
+
+export default app;
