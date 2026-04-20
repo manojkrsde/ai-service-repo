@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — Zyvo AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet" />
+    <style>
+      :root {
+        --primary: #2f5be8;
+        --primary-hover: #1e4bd4;
+        --primary-shadow: rgba(47, 91, 232, 0.28);
+        --secondary-blue: #1a2e6b;
+        --primary-gray: #64748b;
+        --bg: #f0f2f7;
+        --card-bg: #ffffff;
+        --input-bg: #f8f9fc;
+        --input-border: #e2e6f0;
+        --input-focus: #2f5be8;
+        --label: #374151;
+        --orange: #f97316;
+        --error-bg: #fef2f2;
+        --error-border: #fecaca;
+        --error-text: #dc2626;
+        --success-bg: #f0fdf4;
+        --success-border: #bbf7d0;
+        --success-text: #16a34a;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg);
+        background-image:
+          radial-gradient(
+            ellipse at 20% 50%,
+            rgba(47, 91, 232, 0.06) 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse at 80% 20%,
+            rgba(99, 130, 255, 0.05) 0%,
+            transparent 50%
+          );
+        padding: 24px;
+      }
+
+      /* ─── Card ─────────────────────────────────────────── */
+      .card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 48px 44px;
+        width: 100%;
+        max-width: 480px;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.05),
+          0 8px 32px rgba(0, 0, 0, 0.08),
+          0 0 0 1px rgba(0, 0, 0, 0.04);
+        animation: fadeUp 0.35s ease both;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ─── Logo ─────────────────────────────────────────── */
+      .logo-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 44px;
+      }
+
+      .logo-wrap img {
+        height: 50px;
+        object-fit: cover;
+      }
+
+      /* ─── Section Headings ─────────────────────────────── */
+      .form-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--secondary-blue);
+        margin-bottom: 6px;
+      }
+      .form-subtitle {
+        font-size: 14px;
+        color: var(--primary-gray);
+        font-weight: 400;
+        line-height: 1.5;
+        margin-bottom: 36px;
+      }
+      .form-subtitle strong {
+        color: var(--secondary-blue);
+        font-weight: 600;
+      }
+
+      /* ─── Inputs ────────────────────────────────────────── */
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label);
+        margin-bottom: 7px;
+      }
+      .input-wrap {
+        position: relative;
+      }
+      .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        color: #94a3b8;
+        pointer-events: none;
+      }
+      .input-icon svg {
+        width: 18px;
+        height: 18px;
+      }
+      .form-group input[type="email"],
+      .form-group input[type="password"],
+      .form-group input[type="text"] {
+        width: 100%;
+        padding: 13px 16px 13px 44px;
+        background: var(--input-bg);
+        border: 1.5px solid var(--input-border);
+        border-radius: 10px;
+        color: #1e293b;
+        font-size: 14px;
+        font-family: inherit;
+        font-weight: 500;
+        outline: none;
+        transition:
+          border-color 0.18s,
+          box-shadow 0.18s,
+          background 0.18s;
+      }
+      .form-group input:focus {
+        border-color: var(--input-focus);
+        background: #fff;
+        box-shadow: 0 0 0 3.5px rgba(47, 91, 232, 0.12);
+      }
+      .form-group input::placeholder {
+        color: #b0bac9;
+        font-weight: 400;
+      }
+      .form-group input:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      /* Password toggle */
+      .pw-toggle {
+        position: absolute;
+        right: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        transition: color 0.15s;
+      }
+      .pw-toggle:hover {
+        color: var(--primary);
+      }
+      .pw-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* ─── Alert ─────────────────────────────────────────── */
+      .alert {
+        display: none;
+        padding: 11px 14px;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.5;
+        margin-top: 18px;
+        align-items: flex-start;
+        gap: 9px;
+      }
+      .alert.show {
+        display: flex;
+      }
+      .alert-icon {
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .alert-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .alert.error {
+        background: var(--error-bg);
+        border: 1px solid var(--error-border);
+        color: var(--error-text);
+      }
+      .alert.success {
+        background: var(--success-bg);
+        border: 1px solid var(--success-border);
+        color: var(--success-text);
+      }
+      .alert.info {
+        background: rgba(47, 91, 232, 0.06);
+        border: 1px solid rgba(47, 91, 232, 0.18);
+        color: var(--primary);
+      }
+
+      /* ─── CTA Button ─────────────────────────────────────── */
+      .cta-btn {
+        width: 100%;
+        padding: 14px 20px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 11px;
+        font-size: 15px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 28px;
+        transition:
+          background 0.18s,
+          transform 0.15s,
+          box-shadow 0.18s;
+        box-shadow: 0 4px 14px var(--primary-shadow);
+        letter-spacing: 0.01em;
+      }
+      .cta-btn:hover:not(:disabled) {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px var(--primary-shadow);
+      }
+      .cta-btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .cta-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .cta-btn svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .spinner {
+        width: 17px;
+        height: 17px;
+        border: 2.5px solid rgba(255, 255, 255, 0.35);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.65s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ─── OTP Boxes ─────────────────────────────────────── */
+      .otp-wrap {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .otp-box {
+        flex: 1;
+        height: 60px;
+        width: 60px;
+        text-align: center;
+        font-size: 22px;
+        font-weight: 700;
+        font-family: inherit;
+        color: var(--secondary-blue);
+        background: var(--input-bg);
+        border: 1.5px solid var(--input-border);
+        border-radius: 12px;
+        outline: none;
+        caret-color: var(--primary);
+        transition:
+          border-color 0.18s,
+          box-shadow 0.18s,
+          background 0.18s;
+      }
+      .otp-box:focus {
+        border-color: var(--input-focus);
+        background: #fff;
+        box-shadow: 0 0 0 3.5px rgba(47, 91, 232, 0.12);
+      }
+      .otp-box.filled {
+        border-color: var(--primary);
+        background: rgba(47, 91, 232, 0.04);
+      }
+
+      /* ─── Resend ─────────────────────────────────────────── */
+      .resend-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 14px;
+        color: var(--primary-gray);
+        font-weight: 400;
+        margin-top: 20px;
+      }
+      .resend-btn {
+        background: none;
+        border: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--orange);
+        cursor: pointer;
+        padding: 0;
+        transition: opacity 0.15s;
+      }
+      .resend-btn:hover {
+        opacity: 0.75;
+        text-decoration: underline;
+      }
+
+      /* ─── Divider ────────────────────────────────────────── */
+      .divider {
+        margin: 28px 0;
+      }
+
+      /* ─── Footer ─────────────────────────────────────────── */
+      .footer {
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--secondary-blue);
+        margin-top: 36px;
+        opacity: 0.65;
+      }
+
+      /* ─── Success ─────────────────────────────────────────── */
+      #successScreen {
+        display: none;
+        text-align: center;
+        padding: 16px 0;
+      }
+      .success-icon {
+        width: 68px;
+        height: 68px;
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        box-shadow: 0 4px 16px rgba(22, 163, 74, 0.2);
+      }
+      .success-icon svg {
+        width: 32px;
+        height: 32px;
+        color: #16a34a;
+      }
+      #successScreen h2 {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--secondary-blue);
+        margin-bottom: 10px;
+      }
+      #successScreen p {
+        font-size: 14px;
+        color: var(--primary-gray);
+        line-height: 1.6;
+      }
+
+      /* ─── Screen transitions ─────────────────────────────── */
+      .screen {
+        animation: fadeUp 0.28s ease both;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <!-- Logo -->
+      <div class="logo-wrap">
+        <img src="./logo.svg" />
+      </div>
+
+      <!-- ══════ LOGIN SCREEN ══════ -->
+      <div id="loginScreen" class="screen">
+        <h1 class="form-title">Login to account</h1>
+        <p class="form-subtitle">
+          Sign in to grant access to your AI assistant
+        </p>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label for="email">Email Id</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <!-- SMS / envelope icon -->
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            </span>
+            <input
+              type="email"
+              id="email"
+              placeholder="Enter Your Email"
+              autocomplete="email" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <!-- Lock icon -->
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <input
+              type="password"
+              id="password"
+              placeholder="Enter your password"
+              autocomplete="current-password" />
+            <button
+              class="pw-toggle"
+              type="button"
+              onclick="togglePassword()"
+              id="pwToggle"
+              aria-label="Show password">
+              <!-- Eye icon -->
+              <svg
+                id="eyeIcon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error alert -->
+        <div class="alert error" id="loginAlert">
+          <span class="alert-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </span>
+          <span id="loginAlertText"></span>
+        </div>
+
+        <!-- CTA -->
+        <button class="cta-btn" id="loginBtn" onclick="handleLogin()">
+          <span
+            id="loginBtnContent"
+            style="display: flex; align-items: center; gap: 8px">
+            Sign in
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </span>
+        </button>
+
+        <p class="footer">© 2025, Zyvo Pvt. Ltd. All Rights Reserved.</p>
+      </div>
+
+      <!-- ══════ OTP SCREEN ══════ -->
+      <div id="otpScreen" class="screen" style="display: none">
+        <h1 class="form-title" style="color: var(--secondary-blue)">
+          2 Step Verification
+        </h1>
+        <p class="form-subtitle">
+          Please enter the OTP received to confirm your account ownership. A
+          code has been sent to&nbsp;<strong id="otpEmailLabel"></strong>
+        </p>
+
+        <!-- 4-box OTP -->
+        <div class="otp-wrap" id="otpBoxes">
+          <input
+            class="otp-box"
+            type="text"
+            maxlength="1"
+            inputmode="numeric"
+            pattern="[0-9]"
+            id="otp0" />
+          <input
+            class="otp-box"
+            type="text"
+            maxlength="1"
+            inputmode="numeric"
+            pattern="[0-9]"
+            id="otp1" />
+          <input
+            class="otp-box"
+            type="text"
+            maxlength="1"
+            inputmode="numeric"
+            pattern="[0-9]"
+            id="otp2" />
+          <input
+            class="otp-box"
+            type="text"
+            maxlength="1"
+            inputmode="numeric"
+            pattern="[0-9]"
+            id="otp3" />
+        </div>
+
+        <!-- Resend -->
+        <div class="resend-row">
+          Didn't get the OTP?
+          <button class="resend-btn" type="button" onclick="handleResend()">
+            Resend OTP
+          </button>
+        </div>
+
+        <!-- Error / success alert -->
+        <div class="alert error" id="otpAlert">
+          <span class="alert-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </span>
+          <span id="otpAlertText"></span>
+        </div>
+        <div class="alert success" id="otpSuccess">
+          <span class="alert-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          <span id="otpSuccessText"></span>
+        </div>
+
+        <!-- CTA -->
+        <button
+          class="cta-btn"
+          id="verifyBtn"
+          onclick="handleVerifyOtp()"
+          disabled>
+          <span
+            id="verifyBtnContent"
+            style="display: flex; align-items: center; gap: 8px">
+            Verify &amp; Proceed
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </span>
+        </button>
+
+        <p class="footer">© 2025, Zyvo Pvt. Ltd. All Rights Reserved.</p>
+      </div>
+
+      <!-- ══════ SUCCESS SCREEN ══════ -->
+      <div id="successScreen">
+        <div class="success-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <h2>Connected!</h2>
+        <p>You can close this window and return to your AI assistant.</p>
+        <p class="footer" style="margin-top: 40px">
+          © 2025, Zyvo Pvt. Ltd. All Rights Reserved.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      let userEmail = "";
+      let userPassword = "";
+
+      // ── Helpers ────────────────────────────────────────────
+      function showLoginAlert(msg) {
+        const el = document.getElementById("loginAlert");
+        document.getElementById("loginAlertText").textContent = msg;
+        el.classList.add("show");
+      }
+      function hideLoginAlert() {
+        document.getElementById("loginAlert").classList.remove("show");
+      }
+
+      function showOtpAlert(msg) {
+        document.getElementById("otpAlert").classList.add("show");
+        document.getElementById("otpAlertText").textContent = msg;
+        document.getElementById("otpSuccess").classList.remove("show");
+      }
+      function showOtpSuccess(msg) {
+        document.getElementById("otpSuccess").classList.add("show");
+        document.getElementById("otpSuccessText").textContent = msg;
+        document.getElementById("otpAlert").classList.remove("show");
+      }
+      function hideOtpAlerts() {
+        document.getElementById("otpAlert").classList.remove("show");
+        document.getElementById("otpSuccess").classList.remove("show");
+      }
+
+      function setLoginLoading(loading) {
+        const btn = document.getElementById("loginBtn");
+        const content = document.getElementById("loginBtnContent");
+        btn.disabled = loading;
+        if (loading) {
+          content.innerHTML = '<span class="spinner"></span> Signing in...';
+        } else {
+          content.innerHTML = `Sign in <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+        }
+      }
+
+      function setVerifyLoading(loading) {
+        const btn = document.getElementById("verifyBtn");
+        const content = document.getElementById("verifyBtnContent");
+        btn.disabled = loading;
+        if (loading) {
+          content.innerHTML = '<span class="spinner"></span> Verifying...';
+        } else {
+          content.innerHTML = `Verify &amp; Proceed <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+        }
+      }
+
+      function switchScreen(from, to) {
+        document.getElementById(from).style.display = "none";
+        const toEl = document.getElementById(to);
+        toEl.style.display = "block";
+        toEl.style.animation = "none";
+        requestAnimationFrame(() => {
+          toEl.style.animation = "";
+        });
+      }
+
+      // ── Password toggle ────────────────────────────────────
+      function togglePassword() {
+        const input = document.getElementById("password");
+        const isText = input.type === "text";
+        input.type = isText ? "password" : "text";
+        document.getElementById("eyeIcon").innerHTML = isText
+          ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+          : '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      }
+
+      // ── OTP boxes logic ────────────────────────────────────
+      const otpInputs = Array.from({ length: 4 }, (_, i) =>
+        document.getElementById("otp" + i),
+      );
+
+      function getOtpValue() {
+        return otpInputs.map((i) => i.value).join("");
+      }
+
+      function updateVerifyBtn() {
+        const val = getOtpValue();
+        document.getElementById("verifyBtn").disabled = val.length !== 4;
+        otpInputs.forEach((inp, idx) => {
+          inp.classList.toggle("filled", inp.value.length === 1);
+        });
+      }
+
+      otpInputs.forEach((input, idx) => {
+        input.addEventListener("input", (e) => {
+          const val = e.target.value.replace(/\D/g, "");
+          e.target.value = val.slice(-1);
+          updateVerifyBtn();
+          if (val && idx < 3) otpInputs[idx + 1].focus();
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !e.target.value && idx > 0) {
+            otpInputs[idx - 1].focus();
+            otpInputs[idx - 1].value = "";
+            updateVerifyBtn();
+          }
+          if (e.key === "Enter" && getOtpValue().length === 4)
+            handleVerifyOtp();
+        });
+        input.addEventListener("paste", (e) => {
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData)
+            .getData("text")
+            .replace(/\D/g, "")
+            .slice(0, 4);
+          text.split("").forEach((ch, i) => {
+            if (otpInputs[i]) otpInputs[i].value = ch;
+          });
+          updateVerifyBtn();
+          if (text.length < 4) otpInputs[text.length]?.focus();
+          else otpInputs[3].focus();
+        });
+      });
+
+      // ── Login ──────────────────────────────────────────────
+      async function handleLogin() {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        hideLoginAlert();
+
+        if (!email || !password) {
+          showLoginAlert("Please enter both email and password.");
+          return;
+        }
+
+        setLoginLoading(true);
+
+        try {
+          const res = await fetch("/proxy/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            userEmail = email;
+            userPassword = password;
+            document.getElementById("otpEmailLabel").textContent = email;
+            switchScreen("loginScreen", "otpScreen");
+            otpInputs[0].focus();
+          } else {
+            const msg =
+              data?.data?.[0]?.msg ||
+              data?.message ||
+              "Login failed. Please try again.";
+            showLoginAlert(msg);
+          }
+        } catch (err) {
+          showLoginAlert("Failed to connect to server. Please try again.");
+        } finally {
+          setLoginLoading(false);
+        }
+      }
+
+      // ── Verify OTP ─────────────────────────────────────────
+      async function handleVerifyOtp() {
+        const otp = getOtpValue();
+        hideOtpAlerts();
+
+        if (otp.length !== 4) {
+          showOtpAlert("Please enter the complete 4-digit OTP.");
+          return;
+        }
+
+        setVerifyLoading(true);
+
+        try {
+          const res = await fetch("/proxy/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userEmail, otp }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            showOtpSuccess("Verified! Connecting your account...");
+
+            const callbackUrl = new URL("/callback", window.location.origin);
+            callbackUrl.searchParams.set("email", data.data.email);
+            callbackUrl.searchParams.set("user_id", String(data.data.id));
+            callbackUrl.searchParams.set(
+              "company_id",
+              String(data.data.company_id),
+            );
+            callbackUrl.searchParams.set(
+              "company_type",
+              data.data.account_type || "Primary",
+            );
+            callbackUrl.searchParams.set(
+              "role_char",
+              data.data.role_char || "Employee",
+            );
+
+            [
+              "code_challenge",
+              "code_challenge_method",
+              "state",
+              "redirect_uri",
+              "client_id",
+            ].forEach((param) => {
+              const val = urlParams.get(param);
+              if (val) callbackUrl.searchParams.set(param, val);
+            });
+
+            setTimeout(() => {
+              window.location.href = callbackUrl.toString();
+            }, 700);
+          } else {
+            const msg = data?.message || "Invalid OTP. Please try again.";
+            showOtpAlert(msg);
+            otpInputs.forEach((i) => (i.value = ""));
+            updateVerifyBtn();
+            otpInputs[0].focus();
+          }
+        } catch (err) {
+          showOtpAlert("Verification failed. Please try again.");
+        } finally {
+          setVerifyLoading(false);
+        }
+      }
+
+      // ── Resend ─────────────────────────────────────────────
+      async function handleResend() {
+        hideOtpAlerts();
+        otpInputs.forEach((i) => (i.value = ""));
+        updateVerifyBtn();
+        try {
+          await fetch("/proxy/resend-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userEmail, password: userPassword }),
+          });
+          showOtpSuccess("A new OTP has been sent to your email.");
+        } catch {
+          showOtpAlert("Failed to resend OTP. Please try again.");
+        }
+        otpInputs[0].focus();
+      }
+
+      // ── Keyboard shortcuts ─────────────────────────────────
+      document.getElementById("email").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("password").focus();
+      });
+      document.getElementById("password").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
+    </script>
+  </body>
+</html>

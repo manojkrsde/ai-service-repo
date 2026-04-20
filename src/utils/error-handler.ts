@@ -4,6 +4,7 @@ import type {
   NextFunction,
   ErrorRequestHandler,
 } from "express";
+import { StatusCodes } from "http-status-codes";
 
 import { BaseError, type SerializedError } from "../errors/index.js";
 import logger from "../config/logger.js";
@@ -41,7 +42,7 @@ const normalize = (err: unknown, req: Request): SerializedError => {
       errorId: crypto.randomUUID(),
       errorCode: "INTERNAL_SERVER_ERROR",
       name: err.name,
-      statusCode: 500,
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       severity: "high",
       category: "unknown",
       message: err.message,
@@ -61,7 +62,7 @@ const normalize = (err: unknown, req: Request): SerializedError => {
     errorId: crypto.randomUUID(),
     errorCode: "UNKNOWN_ERROR",
     name: "UnknownError",
-    statusCode: 500,
+    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
     severity: "critical",
     category: "unknown",
     message: "An unexpected error occurred.",
@@ -105,7 +106,7 @@ interface ErrorResponse {
 }
 
 export const notFoundHandler = (req: Request, res: Response): void => {
-  res.status(404).json({
+  res.status(StatusCodes.NOT_FOUND).json({
     success: false,
     errorId: crypto.randomUUID(),
     errorCode: "NOT_FOUND",
