@@ -8,6 +8,7 @@ export class McpAccessTokens extends Model {
   declare company_type: string;
   declare role_char: string;
   declare client_id: string;
+  declare client_name_slug: string;
   declare scopes: any;
   declare revoked: boolean;
   declare last_used_at: Date | null;
@@ -64,6 +65,11 @@ export class McpAccessTokens extends Model {
         client_id: {
           type: DataTypes.STRING(255),
           allowNull: false,
+        },
+        client_name_slug: {
+          type: DataTypes.STRING(64),
+          allowNull: false,
+          defaultValue: "mcp-client",
         },
         scopes: {
           type: DataTypes.JSONB,

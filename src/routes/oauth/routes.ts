@@ -21,6 +21,8 @@ import { StatusCodes } from "http-status-codes";
 import axiosInstance from "../../utils/axios.instance.js";
 import config from "../../config/env.js";
 import logger from "../../config/logger.js";
+import { slugifyClientName } from "../../helpers/slug.helper.js";
+import * as oauthRepo from "../../repositories/oauth.repository.js";
 import {
   createAuthCode,
   getAuthCode,
@@ -58,12 +60,37 @@ router.get("/.well-known/oauth-authorization-server", (_, res) => {
   });
 });
 
-router.post("/register", (req, res) => {
+router.post("/register", async (req, res) => {
+  const rawName =
+    typeof req.body?.client_name === "string" && req.body.client_name.trim()
+      ? req.body.client_name.trim()
+      : "MCP Client";
+  const slug = slugifyClientName(rawName);
+  const redirectUris: string[] = Array.isArray(req.body?.redirect_uris)
+    ? req.body.redirect_uris
+    : [];
   const clientId = `mcp-client-${randomUUID()}`;
+
+  try {
+    await oauthRepo.insertClient({
+      client_id: clientId,
+      client_name: rawName,
+      client_name_slug: slug,
+      redirect_uris: redirectUris,
+    });
+  } catch (err) {
+    logger.error({ err, clientId, slug }, "Failed to persist DCR client");
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "server_error",
+      error_description: "Client registration failed",
+    });
+    return;
+  }
+
   res.status(StatusCodes.CREATED).json({
     client_id: clientId,
-    client_name: req.body?.client_name || "MCP Client",
-    redirect_uris: req.body?.redirect_uris || [],
+    client_name: rawName,
+    redirect_uris: redirectUris,
     grant_types: ["authorization_code"],
     response_types: ["code"],
     token_endpoint_auth_method: "none",
@@ -174,11 +201,6 @@ router.get("/callback", async (req, res) => {
     codeChallengeMethod: code_challenge_method || "S256",
   });
 
-  logger.info(
-    { email, clientId: client_id },
-    "OAuth authorization code created",
-  );
-
   const redirectUrl = new URL(redirect_uri);
   redirectUrl.searchParams.set("code", record.code);
   if (state) redirectUrl.searchParams.set("state", state);
@@ -244,6 +266,9 @@ router.post("/token", async (req, res) => {
 
   await markAuthCodeUsed(code);
 
+  const client = await oauthRepo.findClientById(authCode.clientId);
+  const clientNameSlug = client?.client_name_slug ?? "mcp-client";
+
   const tokenRecord = await createAccessToken({
     email: authCode.email,
     userId: authCode.userId,
@@ -251,12 +276,8 @@ router.post("/token", async (req, res) => {
     companyType: authCode.companyType,
     roleChar: authCode.roleChar,
     clientId: authCode.clientId,
+    clientNameSlug,
   });
-
-  logger.info(
-    { email: authCode.email, clientId: authCode.clientId },
-    "OAuth access token issued",
-  );
 
   res.status(StatusCodes.OK).json({
     access_token: tokenRecord.token,
