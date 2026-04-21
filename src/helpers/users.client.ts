@@ -5,7 +5,7 @@
  * All requests route through the API gateway.
  */
 import config from "../config/env.js";
-import { authedPost } from "./authed-axios.js";
+import { authedPost, type AuthedPostOptions } from "./authed-axios.js";
 import type { ToolContext } from "../types/tool.types.js";
 
 const PATH_PREFIX = "/api/userService";
@@ -18,6 +18,7 @@ export async function usersPost<T>(
   endpoint: string,
   body: Record<string, unknown>,
   ctx: ToolContext,
+  options?: AuthedPostOptions,
 ): Promise<T> {
   if (!ctx.sessionAuth) {
     throw new Error(
@@ -26,5 +27,5 @@ export async function usersPost<T>(
   }
 
   const url = `${config.services.apiGateway}${PATH_PREFIX}${endpoint}`;
-  return authedPost<T>(url, body, ctx.sessionAuth);
+  return authedPost<T>(url, body, ctx.sessionAuth, options);
 }

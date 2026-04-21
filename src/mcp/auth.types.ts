@@ -4,6 +4,7 @@ export interface SessionAuth {
   companyId: number;
   companyType: string;
   role: string;
+  clientName: string;
   cachedToken: string;
   cachedSignature: string;
 }

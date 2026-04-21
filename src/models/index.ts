@@ -5,6 +5,7 @@ import configEnv from "../config/env.js";
 import { McpAccessTokens } from "./McpAccessTokens.js";
 import { McpAuthCache } from "./McpAuthCache.js";
 import { McpAuthCodes } from "./McpAuthCodes.js";
+import { McpOauthClients } from "./McpOauthClients.js";
 import { McpToolLogs } from "./McpToolLogs.js";
 
 const env = configEnv.app.env as "development" | "staging" | "production";
@@ -36,6 +37,7 @@ const db = {
   McpAccessTokens: McpAccessTokens.initModel(sequelize),
   McpAuthCache: McpAuthCache.initModel(sequelize),
   McpAuthCodes: McpAuthCodes.initModel(sequelize),
+  McpOauthClients: McpOauthClients.initModel(sequelize),
   McpToolLogs: McpToolLogs.initModel(sequelize),
 };
 
@@ -53,5 +55,6 @@ export {
   McpAccessTokens,
   McpAuthCache,
   McpAuthCodes,
+  McpOauthClients,
   McpToolLogs,
 };

@@ -11,11 +11,12 @@ const prettyStream = pretty({
 });
 
 const streams: pino.StreamEntry[] = config.app.isDev
-  ? [{ level: "trace", stream: prettyStream }]
-  : [
-      { level: "info", stream: process.stdout },
+  ? [
+      { level: "trace", stream: prettyStream },
+      { level: "info", stream: prettyStream },
       { level: "error", stream: process.stderr },
-    ];
+    ]
+  : [{ level: "error", stream: process.stderr }];
 
 if (config.logging.mongo.uri) {
   streams.push({

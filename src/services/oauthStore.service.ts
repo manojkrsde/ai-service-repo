@@ -20,6 +20,7 @@ export interface AccessTokenData {
   companyType: string;
   roleChar: string;
   clientId: string;
+  clientNameSlug: string;
 }
 
 export async function createAuthCode(data: AuthCodeData) {
@@ -84,6 +85,7 @@ export async function createAccessToken(data: AccessTokenData) {
     company_type: data.companyType,
     role_char: data.roleChar,
     client_id: data.clientId,
+    client_name_slug: data.clientNameSlug,
     scopes: ["*"],
     revoked: false,
   });
@@ -106,6 +108,7 @@ export async function getAccessToken(token: string) {
     companyType: record.company_type,
     roleChar: record.role_char,
     clientId: record.client_id,
+    clientNameSlug: record.client_name_slug,
   };
 }
 

@@ -5,7 +5,7 @@ import { resolveUserAuth } from "../helpers/userAuth.client.js";
 import type { SessionAuth } from "../mcp/auth.types.js";
 import * as cacheRepo from "../repositories/mcpAuthCache.repository.js";
 
-const TTL_MS = 30 * 60 * 1000;
+const TTL_MS = 5 * 60 * 1000;
 
 interface TokenRecord {
   token: string;
@@ -14,6 +14,8 @@ interface TokenRecord {
   companyId: number;
   companyType: string;
   roleChar: string;
+  clientId: string;
+  clientNameSlug: string;
 }
 
 function hashToken(token: string): string {
@@ -40,12 +42,16 @@ export async function resolveSessionAuth(
       companyId: cached.company_id,
       companyType: cached.company_type,
       role: cached.role_char,
+      clientName: tokenRecord.clientNameSlug,
       cachedToken: cached.cached_jwt,
       cachedSignature: cached.cached_signature,
     };
   }
 
-  const resolved = await resolveUserAuth(tokenRecord.email);
+  const resolved = await resolveUserAuth({
+    email: tokenRecord.email,
+    clientName: tokenRecord.clientNameSlug,
+  });
 
   const auth: SessionAuth = {
     email: tokenRecord.email,
@@ -53,6 +59,7 @@ export async function resolveSessionAuth(
     companyId: tokenRecord.companyId,
     companyType: tokenRecord.companyType,
     role: tokenRecord.roleChar,
+    clientName: tokenRecord.clientNameSlug,
     cachedToken: resolved.jwtToken,
     cachedSignature: resolved.signature,
   };

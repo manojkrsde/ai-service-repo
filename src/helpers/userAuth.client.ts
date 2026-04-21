@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 
 import config from "../config/env.js";
@@ -19,6 +18,15 @@ interface UserRecord {
   department: number;
 }
 
+interface ResolveUserAuthResponse {
+  success: boolean;
+  data: {
+    jwt_token: string;
+    signature: string;
+    user: UserRecord;
+  };
+}
+
 export interface ResolvedAuth {
   jwtToken: string;
   signature: string;
@@ -26,14 +34,22 @@ export interface ResolvedAuth {
   companyType: string;
 }
 
-export async function resolveUserAuth(email: string): Promise<ResolvedAuth> {
+export interface ResolveUserAuthArgs {
+  email: string;
+  clientName: string;
+}
+
+export async function resolveUserAuth({
+  email,
+  clientName,
+}: ResolveUserAuthArgs): Promise<ResolvedAuth> {
   const apiGatewayUrl = config.services.apiGateway;
   const serviceKey = config.oauth.mcpServiceKey;
 
   try {
     const res = await axiosInstance.post(
       `${apiGatewayUrl}/api/userService/internal/resolve-user-auth`,
-      { email },
+      { email, client_name: clientName },
       {
         headers: {
           "x-service-key": serviceKey,
@@ -41,11 +57,11 @@ export async function resolveUserAuth(email: string): Promise<ResolvedAuth> {
       },
     );
 
-    const json = res.data as { success: boolean; data: UserRecord };
+    const json = res.data as ResolveUserAuthResponse;
 
-    if (!json?.success) {
+    if (!json?.success || !json?.data?.jwt_token || !json?.data?.signature) {
       logger.error(
-        { status: res.status, email, body: json },
+        { status: res.status, email, clientName, body: json },
         "Failed to resolve user auth",
       );
       throw new Error(
@@ -53,33 +69,11 @@ export async function resolveUserAuth(email: string): Promise<ResolvedAuth> {
       );
     }
 
-    const user = json.data;
-
-    if (!user || !user.token) {
-      throw new Error(
-        `[AUTH_ERROR] User ${email} has no active session. They must log in to the web app first.`,
-      );
-    }
-
-    const jwtToken = jwt.sign(
-      {
-        uid: user.uid || user.id,
-        id: user.id,
-        email: user.email,
-        iss: "mcp-client",
-        aud: "cms-backend",
-        company_id: user.company_id,
-        primary_company_id: user.primary_company_id,
-        company_type: user.account_type,
-        role: user.role,
-        role_char: user.role_char,
-      },
-      config.auth.jwtSecretKey,
-    );
+    const { jwt_token, signature, user } = json.data;
 
     return {
-      jwtToken,
-      signature: user.token,
+      jwtToken: jwt_token,
+      signature,
       companyId: user.company_id,
       companyType: user.account_type,
     };
@@ -88,7 +82,7 @@ export async function resolveUserAuth(email: string): Promise<ResolvedAuth> {
     const data = err.response?.data;
 
     logger.error(
-      { status, email, body: data, err },
+      { status, email, clientName, body: data, err },
       "Failed to resolve user auth",
     );
 

@@ -35,7 +35,6 @@ interface EmployeeSummary {
 
 interface ListEmployeesResult {
   total: number;
-  active: number;
   employees: EmployeeSummary[];
 }
 
@@ -50,10 +49,11 @@ interface EmployeeRecord {
 }
 
 interface EmployeesResponse {
-  data?: {
-    totalUsers?: number;
-    activeUsers?: number;
-    allUsers?: EmployeeRecord[];
+  data: {
+    data: {
+      totalUsers?: number;
+      allUsers: EmployeeRecord[];
+    };
   };
 }
 
@@ -73,13 +73,17 @@ export const listEmployeesTool: ToolDefinition<
 
   handler: async (input, ctx) => {
     const res = await usersPost<EmployeesResponse>(
-      "/getActiveEmployeesListData",
+      "/getEmployeesListData",
       {},
       ctx,
+      {
+        injectCompanyContext: false,
+      },
     );
 
-    const data = res.data ?? {};
-    let users = data.allUsers ?? [];
+    const data = res.data.data ?? {};
+
+    let users = data?.allUsers ?? [];
 
     if (input.department) {
       const deptLower = input.department.toLowerCase();
@@ -109,7 +113,6 @@ export const listEmployeesTool: ToolDefinition<
 
     return {
       total: employees.length,
-      active: data.activeUsers ?? employees.length,
       employees,
     };
   },
