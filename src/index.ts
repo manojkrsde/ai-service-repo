@@ -2,7 +2,10 @@ import express, { type Express } from "express";
 import { StatusCodes } from "http-status-codes";
 
 import config from "./config/env.js";
+import corsMiddleware from "./config/cors.js";
+import helmetMiddleware from "./config/helmet.js";
 import logger from "./config/logger.js";
+import { generalLimiter } from "./config/rateLimit.js";
 import { stripTrailingSlash } from "./helpers/trailing.slash.js";
 import { requestLogger } from "./middlewares/request-logger.middleware.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
@@ -10,6 +13,12 @@ import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
 import router from "./routes/index.js";
 
 const app: Express = express();
+
+app.set("trust proxy", config.security.trustProxy);
+
+app.use(helmetMiddleware);
+app.use(corsMiddleware);
+app.use(generalLimiter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

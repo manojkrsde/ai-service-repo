@@ -21,6 +21,7 @@ import { StatusCodes } from "http-status-codes";
 import axiosInstance from "../../utils/axios.instance.js";
 import config from "../../config/env.js";
 import logger from "../../config/logger.js";
+import { authLimiter } from "../../config/rateLimit.js";
 import { slugifyClientName } from "../../helpers/slug.helper.js";
 import * as oauthRepo from "../../repositories/oauth.repository.js";
 import {
@@ -104,7 +105,7 @@ router.get("/authorize", (_req, res) => {
     .sendFile(path.join(__dirname, "public", "authorize.html"));
 });
 
-router.post("/proxy/login", async (req, res) => {
+router.post("/proxy/login", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(
@@ -127,7 +128,7 @@ router.post("/proxy/login", async (req, res) => {
   }
 });
 
-router.post("/proxy/verify-otp", async (req, res) => {
+router.post("/proxy/verify-otp", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(
@@ -150,7 +151,7 @@ router.post("/proxy/verify-otp", async (req, res) => {
   }
 });
 
-router.post("/proxy/resend-otp", async (req, res) => {
+router.post("/proxy/resend-otp", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(

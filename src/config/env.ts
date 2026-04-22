@@ -64,6 +64,19 @@ const config = {
     level: enumerator<LogLevel>("LOG_LEVEL", "info", LOG_LEVEL_VALUES),
     slowRequestMs: int("SLOW_REQUEST_MS", 5000),
   },
+
+  security: {
+    corsAllowedOrigins: str("CORS_ALLOWED_ORIGINS", "*"),
+    trustProxy: int("TRUST_PROXY_HOPS", 1),
+    rateLimit: {
+      generalMax: int("RATE_LIMIT_GENERAL_MAX", 1000),
+      generalWindowMs: int("RATE_LIMIT_GENERAL_WINDOW_MS", 60_000),
+      authMax: int("RATE_LIMIT_AUTH_MAX", 10),
+      authWindowMs: int("RATE_LIMIT_AUTH_WINDOW_MS", 15 * 60_000),
+      heavyMax: int("RATE_LIMIT_HEAVY_MAX", 50),
+      heavyWindowMs: int("RATE_LIMIT_HEAVY_WINDOW_MS", 60 * 60_000),
+    },
+  },
 } as const;
 
 export type AppConfig = typeof config;
