@@ -1,75 +1,79 @@
 /**
- * Answers: "Show me leads matching [structured filters]."
+ * Answers: "Show me all leads for form X. List leads assigned to [user]."
  *
- * Replaces the structured half of the old `search_leads` tool. All
- * filters map directly to `/getAllLeadsResponse`; backend handles role
- * scoping via middleware.
+ * Calls /getAllLeadsResponse which returns fully-enriched lead records
+ * (the backend already resolves: assigned_to_name, LeadFormName, Pipeline
+ * stages, CompanyName). No extra lookup calls needed.
+ *
+ * Backend response shape (via data_found):
+ * {
+ *   data: [{
+ *     key, id, LeadName, CompanyName, Phone, Email,
+ *     Pipeline (string[]),  assigned_to_name,  emp_id,
+ *     assigned_to_number,  Items { "Total Leads", "Today's Leads", ... },
+ *     CreatedDate,  LeadFormName,
+ *     // + all DB columns: form_id, pipeline_id, pipeline_char,
+ *     // lead_source, lead_source_child, priority, response,
+ *     // mobile_no, email, assigned_to, follow_up_date, createdAt
+ *   }],
+ *   transferLeadIds: []
+ * }
  */
 import { z } from "zod";
 
-import {
-  createEnrichmentCache,
-  enrichLeads,
-  type EnrichedLead,
-  type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
 import { leadsPost } from "../../../../helpers/leads.client.js";
-import { resolveDateRange } from "../../../../helpers/time-range.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
 const schema = z.object({
-  source: z
-    .string()
-    .optional()
-    .describe(
-      "Filter by lead source, e.g. facebook, whatsapp, public_form, manual",
-    ),
-  stage: z
-    .string()
-    .optional()
-    .describe("Filter by pipeline stage name, e.g. Qualified, Demo Scheduled"),
-  priority: z
-    .enum(["low", "medium", "high", "urgent"])
-    .optional()
-    .describe("Filter by priority level"),
-  assigned_to: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Filter leads assigned to a specific user ID"),
   form_id: z
     .number()
     .int()
     .positive()
+    .describe(
+      "The lead form ID to list leads from (required — use list_forms to discover available forms)",
+    ),
+  start_date: z
+    .string()
+    .default("2000-01-01")
+    .describe("Start date filter in YYYY-MM-DD format (defaults to all-time)"),
+  end_date: z
+    .string()
     .optional()
-    .describe("Scope to a specific form"),
-  pipeline_id: z
+    .describe(
+      "End date filter in YYYY-MM-DD format (defaults to today if omitted)",
+    ),
+  stage: z
+    .string()
+    .optional()
+    .describe(
+      "Filter to a specific pipeline stage name (e.g. 'New', 'Contacted', 'Demo')",
+    ),
+  source: z
+    .string()
+    .optional()
+    .describe(
+      "Filter by lead source (parent), e.g. 'facebook', 'whatsapp', 'manual'",
+    ),
+  source_child: z
+    .string()
+    .optional()
+    .describe("Filter by lead sub-source (child source)"),
+  user_id: z
     .number()
     .int()
     .positive()
     .optional()
-    .describe("Scope to a specific pipeline"),
-  time_range: z
-    .enum(["today", "this_week", "this_month", "last_30_days", "custom", "all_time"])
-    .default("all_time")
-    .describe("Limit to leads created within this window"),
-  start_date: z
-    .string()
-    .optional()
-    .describe("Custom range start (YYYY-MM-DD) — only when time_range=custom"),
-  end_date: z
-    .string()
-    .optional()
-    .describe("Custom range end (YYYY-MM-DD) — only when time_range=custom"),
+    .describe(
+      "Filter leads assigned to a specific user ID (omit to see all per your role)",
+    ),
   limit: z
     .number()
     .int()
     .min(1)
-    .max(100)
+    .max(200)
     .default(20)
-    .describe("Number of results to return"),
+    .describe("Maximum number of leads to return"),
   offset: z
     .number()
     .int()
@@ -78,71 +82,127 @@ const schema = z.object({
     .describe("Pagination offset"),
 });
 
+interface LeadItem {
+  lead_id: number;
+  name: string;
+  phone: string;
+  email: string;
+  source: string;
+  source_child: string | null;
+  stage: string;
+  priority: string;
+  assigned_to_name: string;
+  assigned_to_number: string | null;
+  follow_up_date: string | null;
+  form_name: string | null;
+  created_at: string;
+}
+
+interface LeadStats {
+  total_leads: number;
+  today_leads: number;
+  yesterday_leads: number;
+  this_month_leads: number;
+}
+
 interface ListLeadsResult {
-  total_count: number;
+  form_id: number;
   returned: number;
-  offset: number;
-  leads: EnrichedLead[];
+  stats: LeadStats | null;
+  leads: LeadItem[];
 }
 
-interface LeadRecord extends LeadLike {
+interface LeadRecord {
+  key?: number;
   id?: number;
+  LeadName?: string;
+  Phone?: string;
+  Email?: string;
+  mobile_no?: string;
+  email?: string;
+  lead_source?: string;
+  lead_source_child?: string;
+  pipeline_char?: string;
+  priority?: string;
+  assigned_to_name?: string;
+  assigned_to_number?: string;
+  follow_up_date?: string;
+  LeadFormName?: string;
+  CreatedDate?: string;
+  createdAt?: string;
+  Items?: Record<string, number>;
 }
 
-interface AllLeadsResponse {
+interface LeadsResponse {
   data?: LeadRecord[];
-  total_count?: number;
+  transferLeadIds?: number[];
 }
 
 export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
   name: "list_leads",
   title: "List Leads",
   description:
-    "Lists leads matching structured filters (source, stage, priority, assigned user, " +
-    "form, pipeline, time range). Supports pagination. " +
-    "Use when the user asks: Show me all Facebook leads from this week. " +
-    "List urgent leads assigned to user 12. Find leads in Qualified stage this month.",
+    "Lists leads with full enriched details: name, phone, email, stage, priority, " +
+    "assigned salesperson, follow-up date, and form name. " +
+    "The backend already resolves all IDs to human-readable names — no extra lookups needed. " +
+    "Use this to answer: Show me all leads this week. Who's assigned lead [form]? " +
+    "How many leads came from Facebook? What leads are in the Demo stage? " +
+    "IMPORTANT: form_id is required — use list_forms first if you don't know it.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
-  meta: { version: "1.0.0", tags: ["leads", "list"] },
+  meta: { version: "2.0.0", tags: ["leads", "list"] },
 
   handler: async (input, ctx) => {
+    const today = new Date().toISOString().split("T")[0];
     const body: Record<string, unknown> = {
+      form_id: input.form_id,
+      start_date: input.start_date,
+      end_date: input.end_date ?? today,
       limit: input.limit,
       offset: input.offset,
     };
 
-    if (input.source) body["lead_source"] = input.source;
     if (input.stage) body["pipeline_char"] = input.stage;
-    if (input.priority) body["priority"] = input.priority;
-    if (input.assigned_to !== undefined) body["assigned_to"] = input.assigned_to;
-    if (input.form_id !== undefined) body["form_id"] = input.form_id;
-    if (input.pipeline_id !== undefined) body["pipeline_id"] = input.pipeline_id;
+    if (input.source) body["parent_source"] = input.source;
+    if (input.source_child) body["child_source"] = input.source_child;
+    if (input.user_id !== undefined) body["user_id"] = input.user_id;
 
-    const range = resolveDateRange(
-      input.time_range,
-      input.start_date,
-      input.end_date,
-    );
-    if (range) {
-      body["start_date"] = range.start_date;
-      body["end_date"] = range.end_date;
-    }
+    const res = await leadsPost<LeadsResponse>("/getAllLeadsResponse", body, ctx);
 
-    const res = await leadsPost<AllLeadsResponse>(
-      "/getAllLeadsResponse",
-      body,
-      ctx,
-    );
+    const records = res.data ?? [];
 
-    const leads = res.data ?? [];
-    const enriched = await enrichLeads(leads, ctx, createEnrichmentCache());
+    // Extract stats from the first record's Items field (same for all)
+    const rawItems = records[0]?.Items;
+    const stats: LeadStats | null = rawItems
+      ? {
+          total_leads: rawItems["Total Leads"] ?? 0,
+          today_leads: rawItems["Today's Leads"] ?? 0,
+          yesterday_leads: rawItems["Yesterday's Leads"] ?? 0,
+          this_month_leads: rawItems["This Month's Leads"] ?? 0,
+        }
+      : null;
+
+    const leads: LeadItem[] = records.map((r) => ({
+      lead_id: r.key ?? r.id ?? 0,
+      name: r.LeadName ?? "Unknown",
+      phone: r.Phone ?? r.mobile_no ?? "",
+      email: r.Email ?? r.email ?? "",
+      source: r.lead_source ?? "unknown",
+      source_child: r.lead_source_child ?? null,
+      stage: r.pipeline_char ?? "unknown",
+      priority: r.priority ?? "Medium",
+      assigned_to_name: r.assigned_to_name ?? "Unassigned",
+      assigned_to_number: r.assigned_to_number ?? null,
+      follow_up_date: r.follow_up_date ?? null,
+      form_name: r.LeadFormName ?? null,
+      created_at: r.CreatedDate ?? r.createdAt ?? "",
+    }));
 
     return {
-      total_count: res.total_count ?? enriched.length,
-      returned: enriched.length,
-      offset: input.offset,
-      leads: enriched,
+      form_id: input.form_id,
+      returned: leads.length,
+      stats,
+      leads,
     };
   },
 };

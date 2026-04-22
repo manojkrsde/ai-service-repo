@@ -1,8 +1,11 @@
 /**
  * Updates mutable fields on an existing lead record.
  *
- * Accepts a partial patch — only supplied fields are sent to the backend.
- * Calls /updateLeadResponse with the lead_id and changed fields.
+ * Routes different update types to the correct backend endpoints:
+ *   - priority change  →  POST /updateLeadPriority
+ *   - field/date update →  POST /editLeadResponse
+ *
+ * NOTE: Stage changes should use move_lead_to_stage instead.
  */
 import { z } from "zod";
 
@@ -17,17 +20,23 @@ const schema = z.object({
     .positive()
     .describe("The internal CRM ID of the lead to update"),
   priority: z
-    .enum(["low", "medium", "high", "urgent"])
+    .enum(["Low", "Medium", "High", "Urgent"])
     .optional()
-    .describe("New priority level for the lead"),
+    .describe(
+      "New priority level for the lead. If provided, calls /updateLeadPriority.",
+    ),
   follow_up_date: z
     .string()
     .optional()
-    .describe("New follow-up date (ISO date or datetime string)"),
+    .describe(
+      "New follow-up date as ISO date string (e.g. 2026-05-01). Calls /editLeadResponse.",
+    ),
   fields: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe("Partial update to the lead's form response fields"),
+    .describe(
+      "Partial update to the lead's form response fields. Calls /editLeadResponse.",
+    ),
 });
 
 interface UpdateLeadResult {
@@ -46,36 +55,57 @@ export const updateLeadTool: ToolDefinition<typeof schema, UpdateLeadResult> =
     name: "update_lead",
     title: "Update Lead",
     description:
-      "Updates mutable fields on a lead record (priority, follow-up date, form fields). " +
-      "Only the fields you supply are changed. " +
-      "Use when the user says: Change lead 123's priority to urgent. " +
-      "Update the follow-up date for this lead.",
+      "Updates mutable fields on a lead record. " +
+      "Priority changes use /updateLeadPriority. " +
+      "Field/follow-up-date updates use /editLeadResponse. " +
+      "For stage changes, use move_lead_to_stage instead. " +
+      "Use when the user says: Change lead 123's priority to High. " +
+      "Update the follow-up date. Edit this lead's contact details.",
     inputSchema: schema,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
     },
-    meta: { version: "1.0.0", tags: ["action", "leads"] },
+    meta: { version: "2.0.0", tags: ["action", "leads"] },
 
     handler: async (input, ctx) => {
-      const body: Record<string, unknown> = { lead_id: input.lead_id };
       const updatedFields: string[] = [];
+      const calls: Promise<unknown>[] = [];
 
+      // Priority update goes through a dedicated endpoint
       if (input.priority !== undefined) {
-        body["priority"] = input.priority;
+        calls.push(
+          leadsPost<UpdateResponse>(
+            "/updateLeadPriority",
+            { lead_id: input.lead_id, priority: input.priority },
+            ctx,
+          ),
+        );
         updatedFields.push("priority");
       }
-      if (input.follow_up_date !== undefined) {
-        body["follow_up_date"] = input.follow_up_date;
-        updatedFields.push("follow_up_date");
-      }
-      if (input.fields !== undefined) {
-        body["response"] = input.fields;
-        updatedFields.push(...Object.keys(input.fields));
+
+      // Field and follow-up updates go through editLeadResponse
+      if (input.follow_up_date !== undefined || input.fields !== undefined) {
+        const body: Record<string, unknown> = { lead_id: input.lead_id };
+        if (input.follow_up_date !== undefined) {
+          body["follow_up_date"] = input.follow_up_date;
+          updatedFields.push("follow_up_date");
+        }
+        if (input.fields !== undefined) {
+          body["response"] = input.fields;
+          updatedFields.push(...Object.keys(input.fields));
+        }
+        calls.push(leadsPost<UpdateResponse>("/editLeadResponse", body, ctx));
       }
 
-      await leadsPost<UpdateResponse>("/updateLeadResponse", body, ctx);
+      if (calls.length === 0) {
+        throw new Error(
+          "No fields to update — provide at least one of: priority, follow_up_date, fields",
+        );
+      }
+
+      await Promise.all(calls);
 
       return {
         success: true,

@@ -1,8 +1,10 @@
 /**
- * Soft-deletes a lead record (marks it inactive).
+ * Soft-archives a lead record (status=0 = inactive).
  *
- * Calls /deleteLeadResponse. The lead is not permanently removed;
- * it is archived and excluded from active lists.
+ * IMPORTANT: There is no /deleteLeadResponse route in the backend.
+ * The correct approach is /editLeadResponse with status=0 which marks
+ * the lead as inactive and excludes it from all active list queries.
+ * The lead data is preserved for audit/recovery.
  */
 import { z } from "zod";
 
@@ -15,19 +17,16 @@ const schema = z.object({
     .number()
     .int()
     .positive()
-    .describe("The internal CRM ID of the lead to delete"),
-  reason: z
-    .string()
-    .optional()
-    .describe("Optional reason for deletion (for audit trail)"),
+    .describe("The internal CRM ID of the lead to archive/deactivate"),
 });
 
 interface DeleteLeadResult {
   success: boolean;
   lead_id: number;
+  note: string;
 }
 
-interface DeleteResponse {
+interface EditResponse {
   success?: boolean;
   message?: string;
 }
@@ -37,26 +36,31 @@ export const deleteLeadTool: ToolDefinition<typeof schema, DeleteLeadResult> =
     name: "delete_lead",
     title: "Delete Lead",
     description:
-      "Soft-deletes (archives) a lead record so it no longer appears in active lists. " +
-      "The lead is not permanently removed. " +
-      "Use when the user says: Remove lead 123. Archive this lead. Delete the duplicate entry.",
+      "Soft-deletes (archives) a lead by setting its status to inactive. " +
+      "The lead is NOT permanently removed — it is excluded from active list queries " +
+      "but can be restored. Use when the user says: Remove lead 123. " +
+      "Archive this lead. Delete the duplicate. Mark this lead as inactive.",
     inputSchema: schema,
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
     },
-    meta: { version: "1.0.0", tags: ["action", "leads"] },
+    meta: { version: "2.0.0", tags: ["action", "leads"] },
 
     handler: async (input, ctx) => {
-      const body: Record<string, unknown> = { lead_id: input.lead_id };
-      if (input.reason) body["reason"] = input.reason;
-
-      await leadsPost<DeleteResponse>("/deleteLeadResponse", body, ctx);
+      // Backend has no /deleteLeadResponse route.
+      // /editLeadResponse with status=0 achieves the same effect.
+      await leadsPost<EditResponse>(
+        "/editLeadResponse",
+        { lead_id: input.lead_id, status: 0 },
+        ctx,
+      );
 
       return {
         success: true,
         lead_id: input.lead_id,
+        note: "Lead archived (status set to inactive). Data is preserved and recoverable.",
       };
     },
   };

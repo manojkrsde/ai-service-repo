@@ -7,8 +7,8 @@
 /**
  * Assigns a lead to a specific user.
  *
- * Fetches the lead to get its form_id (required by the backend), then calls
- * /assignLead.
+ * Calls /assignLead (assignLeadManually controller).
+ * Backend reads: req.body.leadId (the lead) and req.body.id (the user to assign to).
  */
 import { z } from "zod";
 
@@ -35,70 +35,56 @@ interface AssignLeadResult {
   assigned_to: number;
 }
 
-interface LeadRecord {
-  id?: number;
-  form_id?: number;
-}
+// interface LeadRecord {
+//   id?: number;
+//   form_id?: number;
+// }
 
-interface LeadByIdResponse {
-  data?: LeadRecord;
-}
+// interface LeadByIdResponse {
+//   data?: LeadRecord;
+// }
 
 interface AssignResponse {
   success?: boolean;
-  message?: string;
+  msg?: string;
+  status?: boolean;
 }
 
-export const assignLeadTool: ToolDefinition<typeof schema, AssignLeadResult> =
-  {
-    name: "assign_lead",
-    title: "Assign Lead",
-    description:
-      "Manually assigns a lead to a specific CRM user. " +
-      "Use this when redistributing leads, responding to a request to hand off a lead, " +
-      "or assigning an unattended lead to an agent.",
-    inputSchema: schema,
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-    },
-    meta: { version: "1.0.0", tags: ["action", "leads", "assignment"] },
+export const assignLeadTool: ToolDefinition<typeof schema, AssignLeadResult> = {
+  name: "assign_lead",
+  title: "Assign Lead",
+  description:
+    "Manually assigns a lead to a specific CRM user (salesperson/agent). " +
+    "Use list_employees to discover user IDs and names. " +
+    "Use this when redistributing leads, responding to a request to hand off a lead, " +
+    "or assigning an unattended lead to an agent.",
+  inputSchema: schema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+  },
+  meta: { version: "1.0.0", tags: ["action", "leads", "assignment"] },
 
-    handler: async (input, ctx) => {
-      // The backend requires form_id alongside lead_id — fetch it first
-      const leadRes = await leadsPost<LeadByIdResponse>(
-        "/getLeadById",
-        { lead_id: input.lead_id },
-        ctx,
-      );
+  handler: async (input, ctx) => {
+    // Backend assignLeadManually reads:
+    //  - leadId: the lead's PK
+    //  - id: the user to assign to
+    await leadsPost<AssignResponse>(
+      "/assignLead",
+      {
+        leadId: input.lead_id,
+        id: input.user_id,
+      },
+      ctx,
+    );
 
-      const lead = leadRes.data;
-      if (!lead) {
-        throw new Error(`Lead ${input.lead_id} not found`);
-      }
-
-      const formId = lead.form_id;
-      if (!formId) {
-        throw new Error(`Lead ${input.lead_id} has no associated form`);
-      }
-
-      await leadsPost<AssignResponse>(
-        "/assignLead",
-        {
-          lead_id: input.lead_id,
-          assigned_to: input.user_id,
-          form_id: formId,
-        },
-        ctx,
-      );
-
-      return {
-        success: true,
-        lead_id: input.lead_id,
-        assigned_to: input.user_id,
-      };
-    },
-  };
+    return {
+      success: true,
+      lead_id: input.lead_id,
+      assigned_to: input.user_id,
+    };
+  },
+};
 
 toolRegistry.register(assignLeadTool);

@@ -17,10 +17,7 @@ import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
 const schema = z.object({
-  email: z
-    .string()
-    .min(3)
-    .describe("Email or partial email to search for"),
+  email: z.string().min(3).describe("Email or partial email to search for"),
   limit: z
     .number()
     .int()

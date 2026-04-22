@@ -37,12 +37,7 @@ const schema = z.object({
     .max(100)
     .default(25)
     .describe("Number of results to return"),
-  offset: z
-    .number()
-    .int()
-    .min(0)
-    .default(0)
-    .describe("Pagination offset"),
+  offset: z.number().int().min(0).default(0).describe("Pagination offset"),
 });
 
 interface UnassignedResult {
@@ -81,7 +76,8 @@ export const listUnassignedLeadsTool: ToolDefinition<
       offset: input.offset,
     };
     if (input.form_id !== undefined) body["form_id"] = input.form_id;
-    if (input.pipeline_id !== undefined) body["pipeline_id"] = input.pipeline_id;
+    if (input.pipeline_id !== undefined)
+      body["pipeline_id"] = input.pipeline_id;
 
     const res = await leadsPost<QueueLeadsResponse>(
       "/getAllQueueLeadsResponse",

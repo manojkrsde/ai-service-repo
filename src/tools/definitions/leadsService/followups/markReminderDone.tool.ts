@@ -49,9 +49,10 @@ export const markReminderDoneTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["action", "leads", "reminders"] },
 
   handler: async (input, ctx) => {
+    // Backend updateFollowUpStatus reads req.body.id (not reminder_id)
     await leadsPost<UpdateResponse>(
       "/updateLeadFollowUp",
-      { reminder_id: input.reminder_id, status: 1 },
+      { id: input.reminder_id, status: 1 },
       ctx,
     );
 

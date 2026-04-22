@@ -12,7 +12,6 @@ import { updateLeadTool } from "./crud/updateLead.tool.js";
 import { deleteLeadTool } from "./crud/deleteLead.tool.js";
 import { assignLeadTool } from "./crud/assignLead.tool.js";
 import { listLeadsTool } from "./crud/listLeads.tool.js";
-import { listLeadsByStageTool } from "./crud/listLeadsByStage.tool.js";
 import { listUnassignedLeadsTool } from "./crud/listUnassignedLeads.tool.js";
 import { listFormsTool } from "./crud/listForms.tool.js";
 import { listPipelinesTool } from "./crud/listPipelines.tool.js";
@@ -28,7 +27,6 @@ import { addLeadFollowUpTool } from "./followups/addLeadFollowUp.tool.js";
 import { getLeadFollowUpsTool } from "./followups/getLeadFollowUps.tool.js";
 import { getLeadRemindersTool } from "./followups/getLeadReminders.tool.js";
 import { markReminderDoneTool } from "./followups/markReminderDone.tool.js";
-import { scheduleReminderTool } from "./followups/scheduleReminder.tool.js";
 
 import { getLeadVolumeStatsTool } from "./stats/getLeadVolumeStats.tool.js";
 import { getOverallStageCountsTool } from "./stats/getOverallStageCounts.tool.js";
@@ -51,7 +49,6 @@ export const leadsServiceTools: AnyToolDefinition[] = [
   deleteLeadTool,
   assignLeadTool,
   listLeadsTool,
-  listLeadsByStageTool,
   listUnassignedLeadsTool,
   listFormsTool,
   listPipelinesTool,
@@ -67,7 +64,6 @@ export const leadsServiceTools: AnyToolDefinition[] = [
   getLeadFollowUpsTool,
   getLeadRemindersTool,
   markReminderDoneTool,
-  scheduleReminderTool,
   // stats
   getLeadVolumeStatsTool,
   getOverallStageCountsTool,

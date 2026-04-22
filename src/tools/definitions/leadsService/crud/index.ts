@@ -4,7 +4,6 @@ export * from "./updateLead.tool.js";
 export * from "./deleteLead.tool.js";
 export * from "./assignLead.tool.js";
 export * from "./listLeads.tool.js";
-export * from "./listLeadsByStage.tool.js";
 export * from "./listUnassignedLeads.tool.js";
 export * from "./listForms.tool.js";
 export * from "./listPipelines.tool.js";

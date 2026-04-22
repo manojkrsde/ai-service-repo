@@ -24,10 +24,7 @@ const DEFAULT_FETCH = 200;
 const MAX_FETCH = 500;
 
 const schema = z.object({
-  name: z
-    .string()
-    .min(2)
-    .describe("Name (or partial name) to search for"),
+  name: z.string().min(2).describe("Name (or partial name) to search for"),
   form_id: z
     .number()
     .int()
@@ -120,7 +117,9 @@ export const searchLeadByNameTool: ToolDefinition<
       (l) =>
         extractLeadName({
           ...(typeof l.email === "string" ? { email: l.email } : {}),
-          ...(typeof l.mobile_no === "string" ? { mobile_no: l.mobile_no } : {}),
+          ...(typeof l.mobile_no === "string"
+            ? { mobile_no: l.mobile_no }
+            : {}),
           ...(l.response ? { response: l.response } : {}),
         }),
       input.min_score,

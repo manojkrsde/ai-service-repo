@@ -59,7 +59,9 @@ interface AllPipelinesResponse {
 
 interface FormRecord {
   id?: number;
+  key?: number;
   name?: string;
+  LeadFormName?: string;
 }
 interface AllFormsResponse {
   data?: FormRecord[];
@@ -104,14 +106,14 @@ async function loadFormNames(
   if (cache.formNames) return cache.formNames;
   const m = new Map<number, string>();
   try {
-    const res = await leadsPost<AllFormsResponse>(
-      "/getAllLeadForms",
-      {},
-      ctx,
-    );
+    const res = await leadsPost<AllFormsResponse>("/getAllLeadForms", {}, ctx);
     for (const f of res.data ?? []) {
-      if (f.id !== undefined) {
-        m.set(f.id, f.name ?? `Form ${f.id}`);
+      // Backend returns { key, LeadFormName } from getLeadFormByCompany
+      // and { key, LeadFormName } from getLeadForm
+      const fid = f.key ?? f.id;
+      const fname = f.LeadFormName ?? f.name;
+      if (fid !== undefined) {
+        m.set(fid, fname ?? `Form ${fid}`);
       }
     }
   } catch {

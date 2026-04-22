@@ -7,8 +7,11 @@
 /**
  * Manually creates a new lead by submitting form data.
  *
- * Fetches the form definition first to get the pipeline_id, then calls
- * /addLeadResponse with the supplied field data.
+ * IMPORTANT: The backend route has a typo — it is POST /addLeadRespone
+ * (missing the 's') — this is the actual registered route in lead_routes.js.
+ *
+ * Fetches the form definition first to resolve pipeline_id, then calls
+ * /addLeadRespone with all required fields.
  */
 import { z } from "zod";
 
@@ -68,8 +71,11 @@ export const createLeadTool: ToolDefinition<typeof schema, CreateLeadResult> =
     title: "Create Lead",
     description:
       "Manually creates a new lead by submitting form field data. " +
-      "Use list_forms first to discover the available forms and their required fields. " +
-      "Use this to add a lead that came in via phone, email, or any off-system channel.",
+      "The 'fields' map must include at least: 'Full Name' and 'Mobile No' " +
+      "(these are the keys the backend validates). " +
+      "Use list_forms first to discover available forms and their required fields. " +
+      "Always run check_duplicate_phone before creating a lead to avoid duplicates. " +
+      "Use this to add a lead that came via phone, email, or any off-system channel.",
     inputSchema: schema,
     annotations: {
       readOnlyHint: false,
@@ -97,7 +103,8 @@ export const createLeadTool: ToolDefinition<typeof schema, CreateLeadResult> =
       }
 
       const res = await leadsPost<AddLeadResponse>(
-        "/addLeadResponse",
+        // Backend route has typo: /addLeadRespone (not /addLeadResponse)
+        "/addLeadRespone",
         {
           form_id: input.form_id,
           pipeline_id: pipelineId,
