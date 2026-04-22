@@ -1,7 +1,6 @@
 import pino, { type Logger } from "pino";
 import pretty from "pino-pretty";
 import config from "./env.js";
-import { createMongoLogSink } from "../utils/log.sink.js";
 
 const prettyStream = pretty({
   colorize: true,
@@ -13,17 +12,9 @@ const prettyStream = pretty({
 const streams: pino.StreamEntry[] = config.app.isDev
   ? [
       { level: "trace", stream: prettyStream },
-      { level: "info", stream: prettyStream },
       { level: "error", stream: process.stderr },
     ]
   : [{ level: "error", stream: process.stderr }];
-
-if (config.logging.mongo.uri) {
-  streams.push({
-    level: config.logging.mongo.level,
-    stream: createMongoLogSink(),
-  });
-}
 
 const logger: Logger = pino(
   {

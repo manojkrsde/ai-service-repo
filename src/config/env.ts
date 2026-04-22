@@ -62,17 +62,7 @@ const config = {
 
   logging: {
     level: enumerator<LogLevel>("LOG_LEVEL", "info", LOG_LEVEL_VALUES),
-    mongo: {
-      uri: str("MONGODB_URI", ""),
-      db: str("MONGODB_LOG_DB", "ai_services_logs"),
-      collection: str("MONGODB_LOG_COLLECTION", "error_logs"),
-      level: enumerator<LogLevel>(
-        "MONGODB_LOG_LEVEL",
-        "info",
-        LOG_LEVEL_VALUES,
-      ),
-      retentionDays: int("MONGODB_LOG_RETENTION_DAYS", 30),
-    },
+    slowRequestMs: int("SLOW_REQUEST_MS", 5000),
   },
 } as const;
 

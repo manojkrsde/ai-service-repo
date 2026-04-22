@@ -1,47 +1,12 @@
 import { randomUUID } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 
+import config from "../config/env.js";
 import logger from "../config/logger.js";
 
 declare module "express-serve-static-core" {
   interface Request {
     id?: string;
-  }
-  interface Locals {
-    outSample?: string;
-  }
-}
-
-const MAX_SAMPLE_BYTES = 512;
-const REDACT_KEYS = new Set([
-  "authorization",
-  "password",
-  "token",
-  "secret",
-  "jwt",
-  "access_token",
-  "accessToken",
-  "refresh_token",
-  "refreshToken",
-  "cachedToken",
-  "cachedSignature",
-  "signature",
-]);
-
-function sample(value: unknown): string | undefined {
-  if (value === undefined || value === null) return undefined;
-  try {
-    const stringified = JSON.stringify(value, (key, val) => {
-      if (REDACT_KEYS.has(key)) return "[REDACTED]";
-      return val;
-    });
-    if (!stringified) return undefined;
-    if (Buffer.byteLength(stringified, "utf8") <= MAX_SAMPLE_BYTES) {
-      return stringified;
-    }
-    return stringified.slice(0, MAX_SAMPLE_BYTES) + "…";
-  } catch {
-    return undefined;
   }
 }
 
@@ -60,37 +25,27 @@ export function requestLogger(
 
   const start = Date.now();
 
-  logger.info(
-    {
+  res.on("finish", () => {
+    const durationMs = Date.now() - start;
+    const fields = {
       reqId,
       method: req.method,
       path: req.path,
+      status: res.statusCode,
+      durationMs,
       ip: req.ip,
       ua: req.headers["user-agent"],
-      bodySample: sample(req.body),
-    },
-    "request.in",
-  );
+    };
 
-  const originalJson = res.json.bind(res);
-  res.json = (body: unknown): Response => {
-    const sampled = sample(body);
-    if (sampled !== undefined) res.locals.outSample = sampled;
-    return originalJson(body);
-  };
-
-  res.on("finish", () => {
-    logger.info(
-      {
-        reqId,
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        durationMs: Date.now() - start,
-        outSample: res.locals.outSample,
-      },
-      "request.out",
-    );
+    if (res.statusCode >= 500) {
+      logger.error(fields, "request.out");
+    } else if (res.statusCode >= 400) {
+      logger.warn(fields, "request.out");
+    } else if (durationMs >= config.logging.slowRequestMs) {
+      logger.warn(fields, "request.slow");
+    } else {
+      logger.debug(fields, "request.out");
+    }
   });
 
   next();
