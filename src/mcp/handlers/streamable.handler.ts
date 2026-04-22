@@ -6,7 +6,10 @@ import { StatusCodes } from "http-status-codes";
 import config from "../../config/env.js";
 import logger from "../../config/logger.js";
 import { getAccessToken } from "../../services/oauthStore.service.js";
-import { resolveSessionAuth } from "../../services/mcpAuth.service.js";
+import {
+  buildSessionAuth,
+  type AccessTokenSession,
+} from "../../services/mcpAuth.service.js";
 import { createMcpServer } from "../server.js";
 
 function unauthorized(res: Response): void {
@@ -19,11 +22,18 @@ function unauthorized(res: Response): void {
     )
     .json({
       jsonrpc: "2.0",
-      error: { code: -32000, message: "Missing Bearer token" },
+      error: { code: -32000, message: "Missing or invalid Bearer token" },
       id: null,
     });
 }
 
+/**
+ * Validates the Bearer token and builds a SessionAuth.
+ *
+ * Returns null (and has already written a 401 response) if:
+ *  - No Bearer token in the Authorization header
+ *  - Token is unknown, revoked, or missing credentials (pre-migration row)
+ */
 async function authorize(req: Request, res: Response) {
   const rawToken = (req.headers["authorization"] as string | undefined)
     ?.replace(/^Bearer\s+/i, "")
@@ -37,28 +47,12 @@ async function authorize(req: Request, res: Response) {
   const tokenRecord = await getAccessToken(rawToken);
 
   if (!tokenRecord) {
-    res.status(StatusCodes.FORBIDDEN).json({
-      jsonrpc: "2.0",
-      error: { code: -32001, message: "Invalid or expired access token" },
-      id: null,
-    });
+    // HTTP 401 + WWW-Authenticate signals Claude to re-open the login page.
+    unauthorized(res);
     return null;
   }
 
-  try {
-    return await resolveSessionAuth(tokenRecord);
-  } catch (err) {
-    logger.error(
-      { err, email: tokenRecord.email },
-      "Failed to resolve user auth",
-    );
-    res.status(StatusCodes.UNAUTHORIZED).json({
-      success: false,
-      message:
-        "Could not resolve backend credentials. User may need to log in to the web app.",
-    });
-    return null;
-  }
+  return buildSessionAuth(tokenRecord as AccessTokenSession, rawToken);
 }
 
 async function handleStateless(req: Request, res: Response): Promise<void> {

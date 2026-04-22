@@ -11,6 +11,8 @@ export class McpAccessTokens extends Model {
   declare client_name_slug: string;
   declare scopes: any;
   declare revoked: boolean;
+  declare cached_jwt: string | null;
+  declare cached_signature: string | null;
   declare last_used_at: Date | null;
   declare expires_at: Date | null;
   declare created_at: Date;
@@ -24,6 +26,10 @@ export class McpAccessTokens extends Model {
 
   isValid() {
     return !this.revoked && !this.isExpired();
+  }
+
+  hasCredentials() {
+    return !!(this.cached_jwt && this.cached_signature);
   }
 
   async touchLastUsed() {
@@ -80,6 +86,14 @@ export class McpAccessTokens extends Model {
           type: DataTypes.BOOLEAN,
           allowNull: false,
           defaultValue: false,
+        },
+        cached_jwt: {
+          type: DataTypes.TEXT,
+          allowNull: true,
+        },
+        cached_signature: {
+          type: DataTypes.TEXT,
+          allowNull: true,
         },
         last_used_at: {
           type: DataTypes.DATE,

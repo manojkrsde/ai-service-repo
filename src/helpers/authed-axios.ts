@@ -1,19 +1,24 @@
 /**
  * Authenticated HTTP client for backend service calls.
  *
- * Wraps axiosInstance with:
- * 1. Auto-injection of JWT + signature from SessionAuth
- * 2. 401-retry: if backend rejects (stale signature), re-fetches
- *    fresh credentials from user-services and retries once.
+ * Wraps axiosInstance with auto-injection of JWT + signature from SessionAuth.
+ *
+ * On a 401 from the backend the session is no longer valid. The correct
+ * behaviour is NOT to silently regenerate a token — instead:
+ *   1. Revoke the MCP access token (revoked=true in mcp_access_tokens)
+ *      → the next Claude request gets HTTP 401 + WWW-Authenticate
+ *   2. Throw [AUTH_REQUIRED] so the current tool call fails with a clear msg
+ *
+ * Claude will then re-open the MCP login page and a fresh token + credentials
+ * will be stored in mcp_access_tokens on the next /token exchange.
  */
 import { AxiosError } from "axios";
 
 import logger from "../config/logger.js";
 import type { SessionAuth } from "../mcp/auth.types.js";
+import { revokeAccessToken } from "../services/oauthStore.service.js";
 import axiosInstance from "../utils/axios.instance.js";
 import { parseAxiosError } from "./axiosError.helper.js";
-import { resolveUserAuth } from "./userAuth.client.js";
-import type { ResolvedAuth } from "./userAuth.client.js";
 
 export interface AuthedPostOptions {
   /**
@@ -27,7 +32,10 @@ export interface AuthedPostOptions {
 }
 
 /**
- * POST to a backend service with automatic auth and 401-retry.
+ * POST to a backend service with automatic auth header injection.
+ *
+ * Throws `[AUTH_REQUIRED]` (and revokes the MCP token) if the backend
+ * returns 401. All other errors are rethrown as-is.
  */
 export async function authedPost<T>(
   url: string,
@@ -49,59 +57,25 @@ export async function authedPost<T>(
     );
     return res.data as T;
   } catch (err: unknown) {
-    if (!isAxios401(err)) {
-      throwBackendError(err, url);
-    }
-
-    logger.info(
-      { email: auth.email },
-      "401 from backend — refreshing user credentials",
-    );
-
-    let fresh: ResolvedAuth;
-    try {
-      fresh = await resolveUserAuth({
-        email: auth.email,
-        clientName: auth.clientName,
-      });
-      auth.cachedToken = fresh.jwtToken;
-      auth.cachedSignature = fresh.signature;
-    } catch (refreshErr: unknown) {
-      if (
-        refreshErr instanceof Error &&
-        refreshErr.message.startsWith("[AUTH_ERROR]")
-      ) {
-        throw refreshErr;
-      }
-      logger.error(
-        { err: refreshErr, email: auth.email },
-        "Failed to refresh credentials",
+    if (isAxios401(err)) {
+      logger.warn(
+        { email: auth.email, url },
+        "401 from backend — revoking MCP token and forcing re-authentication",
       );
-      throw new Error(
-        "[AUTH_ERROR] Could not refresh credentials. Please re-initialize MCP session.",
-      );
-    }
-
-    try {
-      const retryRes = await doPost(
-        url,
-        body,
-        fresh.jwtToken,
-        fresh.signature,
-        fresh.companyId,
-        fresh.companyType,
-        injectCompany,
-      );
-      return retryRes.data as T;
-    } catch (retryErr: unknown) {
-      if (isAxios401(retryErr)) {
-        throw new Error(
-          "[AUTH_ERROR] User session expired even after refresh. " +
-            "Please re-initialize MCP session.",
+      revokeAccessToken(auth.accessToken).catch((revokeErr) => {
+        logger.warn(
+          { revokeErr, email: auth.email },
+          "Failed to revoke MCP access token (non-fatal)",
         );
-      }
-      throwBackendError(retryErr, url);
+      });
+
+      throw new Error(
+        "[AUTH_REQUIRED] Backend session expired or was revoked. " +
+          "Please re-authenticate via the MCP login page.",
+      );
     }
+
+    throwBackendError(err, url);
   }
 }
 

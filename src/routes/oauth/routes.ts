@@ -29,6 +29,7 @@ import {
   markAuthCodeUsed,
   createAccessToken,
 } from "../../services/oauthStore.service.js";
+import { resolveUserAuth } from "../../helpers/userAuth.client.js";
 import { parseAxiosError } from "../../helpers/axiosError.helper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -269,6 +270,39 @@ router.post("/token", async (req, res) => {
   const client = await oauthRepo.findClientById(authCode.clientId);
   const clientNameSlug = client?.client_name_slug ?? "mcp-client";
 
+  /**
+   * Resolve backend credentials from user-services.
+   *
+   * resolveUserAuth is called EXACTLY ONCE per login — here, during the
+   * OAuth code exchange. The resulting JWT + signature are stored directly
+   * in mcp_access_tokens and served on every subsequent MCP request from
+   * that row alone. No backend auth calls happen during normal operation.
+   *
+   * On a backend 401 the token is revoked, getAccessToken() returns undefined,
+   * and Claude receives HTTP 401 + WWW-Authenticate → re-opens login page.
+   */
+  let cachedJwt: string;
+  let cachedSignature: string;
+  try {
+    const resolved = await resolveUserAuth({
+      email: authCode.email,
+      clientName: clientNameSlug,
+    });
+    cachedJwt = resolved.jwtToken;
+    cachedSignature = resolved.signature;
+  } catch (authErr) {
+    logger.error(
+      { err: authErr, email: authCode.email },
+      "Failed to resolve backend credentials during token exchange",
+    );
+    res.status(StatusCodes.BAD_GATEWAY).json({
+      error: "server_error",
+      error_description:
+        "Could not resolve backend credentials. Please try logging in again.",
+    });
+    return;
+  }
+
   const tokenRecord = await createAccessToken({
     email: authCode.email,
     userId: authCode.userId,
@@ -277,7 +311,14 @@ router.post("/token", async (req, res) => {
     roleChar: authCode.roleChar,
     clientId: authCode.clientId,
     clientNameSlug,
+    cachedJwt,
+    cachedSignature,
   });
+
+  logger.info(
+    { email: authCode.email, clientNameSlug },
+    "MCP access token issued with backend credentials",
+  );
 
   res.status(StatusCodes.OK).json({
     access_token: tokenRecord.token,

@@ -21,6 +21,10 @@ export interface AccessTokenData {
   roleChar: string;
   clientId: string;
   clientNameSlug: string;
+  /** Backend JWT obtained from user-services at OAuth token-exchange time. */
+  cachedJwt: string;
+  /** Backend signature obtained from user-services at OAuth token-exchange time. */
+  cachedSignature: string;
 }
 
 export async function createAuthCode(data: AuthCodeData) {
@@ -86,6 +90,8 @@ export async function createAccessToken(data: AccessTokenData) {
     role_char: data.roleChar,
     client_id: data.clientId,
     client_name_slug: data.clientNameSlug,
+    cached_jwt: data.cachedJwt,
+    cached_signature: data.cachedSignature,
     scopes: ["*"],
     revoked: false,
   });
@@ -96,9 +102,20 @@ export async function createAccessToken(data: AccessTokenData) {
   };
 }
 
+/**
+ * Looks up a valid (non-revoked) MCP access token.
+ *
+ * Returns undefined if the token is unknown, revoked, or is missing
+ * backend credentials (pre-migration rows). In all three cases the
+ * streamable handler will return HTTP 401 + WWW-Authenticate so Claude
+ * re-opens the login page.
+ */
 export async function getAccessToken(token: string) {
   const record = await oauthRepo.findAccessTokenByToken(token);
+
   if (!record || record.revoked) return undefined;
+
+  if (!record.cached_jwt || !record.cached_signature) return undefined;
 
   return {
     token: record.token,
@@ -109,6 +126,8 @@ export async function getAccessToken(token: string) {
     roleChar: record.role_char,
     clientId: record.client_id,
     clientNameSlug: record.client_name_slug,
+    cachedJwt: record.cached_jwt,
+    cachedSignature: record.cached_signature,
   };
 }
 
