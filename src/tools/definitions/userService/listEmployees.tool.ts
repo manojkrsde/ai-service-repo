@@ -6,9 +6,9 @@
  */
 import { z } from "zod";
 
-import { usersPost } from "../../helpers/users.client.js";
-import type { ToolDefinition } from "../../types/tool.types.js";
-import { toolRegistry } from "../registry.js";
+import { usersPost } from "../../../helpers/users.client.js";
+import type { ToolDefinition } from "../../../types/tool.types.js";
+import { toolRegistry } from "../../registry.js";
 
 const schema = z.object({
   department: z
