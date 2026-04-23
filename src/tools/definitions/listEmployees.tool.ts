@@ -1,22 +1,8 @@
 /**
  * Answers: "Who's on the team? Show me the employee list."
  *
- * Calls /getActiveEmployeesListData to get active employees with
+ * Calls /getEmployeesListData to get active all employees with
  * their departments, designations, contact info, joining dates, and more.
- *
- * Backend response (via common.message.data_found) shape:
- * {
- *   data: {
- *     totalUsers, activeUsers, inactiveUsers, newJoiners,
- *     allUsers: [{
- *       key, id, Name, Email, Department, Designation, EmpId,
- *       Phone, JoiningDate, dol, Status, role_char, gender,
- *       ReportingOfficer: { key, name, Designation, Department },
- *       CompanyId, CompanyType, CompanyName, DesignationId,
- *       is_work_from, is_biometric_enable
- *     }]
- *   }
- * }
  */
 import { z } from "zod";
 
@@ -39,7 +25,7 @@ const schema = z.object({
     .enum(["active", "inactive", "all"])
     .default("all")
     .describe(
-      "Filter by employment status. 'active' = currently employed, 'inactive' = on leave/disabled",
+      "Filter by employment status. 'active' = currently employed, 'inactive' = employee left the company",
     ),
 });
 
@@ -47,6 +33,7 @@ interface ReportingOfficer {
   id: number | null;
   name: string | null;
   designation: string | null;
+  department?: string | null;
 }
 
 interface EmployeeSummary {
@@ -54,7 +41,7 @@ interface EmployeeSummary {
   emp_id: string;
   name: string;
   email: string;
-  phone: string;
+  mobile: string;
   department: string;
   designation: string;
   role: string;
@@ -63,6 +50,12 @@ interface EmployeeSummary {
   date_of_leaving: string | null;
   reporting_officer: ReportingOfficer;
   company_name: string;
+  profile_pic_url: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  official_phone_number: string | null;
+  biometric_essl_id: string | null;
+  is_work_from: boolean | null;
 }
 
 interface EmployeeStats {
@@ -78,17 +71,12 @@ interface ListEmployeesResult {
   employees: EmployeeSummary[];
 }
 
-interface RawReportingOfficer {
-  key?: number;
-  name?: string;
-  Designation?: string;
-}
-
 interface EmployeeRecord {
   key?: number;
   id?: number;
   Name?: string;
   Email?: string;
+  Mobile?: string;
   Department?: string;
   Designation?: string;
   Status?: string;
@@ -97,8 +85,16 @@ interface EmployeeRecord {
   Phone?: string;
   JoiningDate?: string;
   dol?: string;
-  ReportingOfficer?: RawReportingOfficer;
+  ReportingOfficerId: number | null;
+  ReportingOfficer?: string | null;
   CompanyName?: string;
+  Image: string | null;
+  Gender: string | null;
+  DOB: string | null;
+  Official_Phone_code: string | null;
+  Official_Phone_Number: string | null;
+  essl_id: string | null;
+  is_work_from: boolean | null;
 }
 
 interface EmployeesData {
@@ -110,7 +106,9 @@ interface EmployeesData {
 }
 
 interface EmployeesResponse {
-  data?: EmployeesData;
+  data: {
+    data: EmployeesData;
+  };
 }
 
 export const listEmployeesTool: ToolDefinition<
@@ -118,14 +116,21 @@ export const listEmployeesTool: ToolDefinition<
   ListEmployeesResult
 > = {
   name: "list_employees",
-  title: "List Employees",
+  title: "Look up employees — contact info, department, manager, status & more",
   description:
-    "Lists employees with full profile data: name, email, phone, department, designation, " +
-    "role, employment status, joining date, reporting officer, and company. " +
-    "Use this to: resolve user IDs to names, find who's on a team, look up an employee by " +
-    "name or email, check someone's department or manager, see new joiners. " +
-    "Pair with get_user_performance_ranking to show names alongside stats. " +
-    "Returns company-level stats (total, active, inactive, new joiners) as well.",
+    "Primary employee directory — the single source of truth for all staff data. " +
+    "Returns full profiles including: name, email, mobile, official phone, gender, DOB, " +
+    "department, designation, role, employment status (active/inactive), joining date, " +
+    "date of leaving, reporting officer (name + designation + department), company, " +
+    "profile picture, biometric ESSL ID, and work-from-home flag. " +
+    "Also returns org-level stats: total headcount, active, inactive, and new joiners in the last 30 days. " +
+    "\n\nUSE THIS TOOL TO: look up any employee by name or email, resolve a user ID to a full profile, " +
+    "find who manages someone, list a department's team, check joining or leaving dates, " +
+    "get a phone number or contact detail, or verify employment status. " +
+    "Supports optional filters: status (active | inactive | all), department (partial match), " +
+    "and name/email search. " +
+    "\n\nNOTE: This is the only tool that returns employee contact numbers and personal details — " +
+    "always call this before concluding that employee data is unavailable.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
   meta: { version: "2.0.0", tags: ["users", "team", "lookup"] },
@@ -138,7 +143,7 @@ export const listEmployeesTool: ToolDefinition<
       { injectCompanyContext: false },
     );
 
-    const responseData = res.data ?? {};
+    const responseData = res?.data?.data ?? {};
     let users = responseData.allUsers ?? [];
 
     // Apply status filter
@@ -166,25 +171,35 @@ export const listEmployeesTool: ToolDefinition<
       );
     }
 
-    const employees: EmployeeSummary[] = users.map((u) => ({
-      user_id: u.key ?? u.id ?? 0,
-      emp_id: u.EmpId ?? "",
-      name: u.Name ?? "Unknown",
-      email: u.Email ?? "",
-      phone: u.Phone ?? "",
-      department: u.Department ?? "Unassigned",
-      designation: u.Designation ?? "Unassigned",
-      role: u.role_char ?? "EMPLOYEE",
-      status: u.Status ?? "Active",
-      joining_date: u.JoiningDate ?? "",
-      date_of_leaving: u.dol || null,
-      reporting_officer: {
-        id: u.ReportingOfficer?.key ?? null,
-        name: u.ReportingOfficer?.name ?? null,
-        designation: u.ReportingOfficer?.Designation ?? null,
-      },
-      company_name: u.CompanyName ?? "",
-    }));
+    const employees: EmployeeSummary[] = users.map((u) => {
+      const reportingOfficer = u.ReportingOfficer?.split("-");
+      return {
+        user_id: u.key ?? u.id ?? 0,
+        emp_id: u.EmpId ?? "",
+        name: u.Name ?? "Unknown",
+        email: u.Email ?? "",
+        mobile: u.Phone ?? "",
+        department: u.Department ?? "Unassigned",
+        designation: u.Designation ?? "Unassigned",
+        role: u.role_char ?? "EMPLOYEE",
+        status: u.Status ?? "Active",
+        joining_date: u.JoiningDate ?? "",
+        date_of_leaving: u.dol || null,
+        reporting_officer: {
+          id: u.ReportingOfficerId,
+          name: reportingOfficer?.[0] ?? null,
+          designation: reportingOfficer?.[1] ?? null,
+          department: reportingOfficer?.[2] ?? null,
+        },
+        company_name: u.CompanyName ?? "",
+        profile_pic_url: u.Image,
+        gender: u.Gender,
+        date_of_birth: u.DOB,
+        official_phone_number: `${u.Official_Phone_code}-${u.Official_Phone_Number}`,
+        biometric_essl_id: u.essl_id ?? "",
+        is_work_from: u.is_work_from ?? false,
+      };
+    });
 
     return {
       stats: {
