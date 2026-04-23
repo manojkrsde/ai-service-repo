@@ -31,7 +31,9 @@ interface DepartmentRecord {
 }
 
 interface DepartmentsResponse {
-  data?: DepartmentRecord[];
+  data: {
+    data: DepartmentRecord[];
+  };
 }
 
 export const listDepartmentsTool: ToolDefinition<
@@ -39,23 +41,32 @@ export const listDepartmentsTool: ToolDefinition<
   ListDepartmentsResult
 > = {
   name: "list_departments",
-  title: "List Departments",
+  title: "Browse departments — names, headcount, and status",
   description:
-    "Lists all departments in the company with their employee counts. " +
-    "Use this to answer: What departments do we have? How many people are in Sales? " +
-    "What's our organizational structure?",
+    "Returns the full department directory with each department's ID, name, " +
+    "employee headcount, and active/inactive status. " +
+    "\n\nUSE THIS TOOL TO: list all departments in the organisation, check how many " +
+    "employees are in a specific department, resolve a department name before filtering " +
+    "list_employees by department, or map out the company's organisational structure. " +
+    "\n\nNOTE: For employee-level detail (names, emails, roles) use list_employees with " +
+    "the department filter instead.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
-  meta: { version: "1.0.0", tags: ["users", "organization", "lookup"] },
+  meta: { version: "1.0.0", tags: ["departments", "organization", "lookup"] },
 
   handler: async (_input, ctx) => {
     const res = await usersPost<DepartmentsResponse>(
       "/getDepartment",
       {},
       ctx,
+      {
+        injectCompanyContext: false,
+      },
     );
 
-    const departments: DepartmentSummary[] = (res.data ?? []).map((d) => ({
+    const apiResponse = res.data.data ?? [];
+
+    const departments: DepartmentSummary[] = (apiResponse ?? []).map((d) => ({
       id: d.key ?? 0,
       name: d.Department ?? "Unknown",
       employee_count: d.NoOfEmployees ?? 0,
