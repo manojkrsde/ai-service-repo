@@ -13,9 +13,9 @@ import {
   enrichLeads,
   type EnrichedLead,
   type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
-import { extractLeadName } from "../../../../helpers/lead.helpers.js";
-import { leadsPost } from "../../../../helpers/leads.client.js";
+} from "../_shared/enrichment.js";
+import { extractLeadName } from "../_shared/lead.helpers.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { rankByName } from "../../../../helpers/fuzzy-name.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -101,8 +101,7 @@ export const searchLeadByNameTool: ToolDefinition<
     };
     if (input.form_id !== undefined) body["form_id"] = input.form_id;
 
-    const res = await leadsPost<AllLeadsResponse>(
-      "/getAllLeadsResponse",
+    const res = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
       body,
       ctx,
     );

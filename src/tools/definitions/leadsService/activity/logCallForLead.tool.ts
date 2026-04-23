@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -99,7 +99,7 @@ export const logCallForLeadTool: ToolDefinition<typeof schema, LogCallResult> =
       if (input.notes) body["note"] = input.notes;
       if (followUpDate) body["follow_up_date"] = followUpDate;
 
-      const res = await leadsPost<CallResponse>("/addLeadCalls", body, ctx);
+      const res = await apiPost<CallResponse>(`${SERVICE.LEADS}/addLeadCalls`, body, ctx);
 
       const callId = res.data?.id ?? res.id ?? null;
 

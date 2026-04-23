@@ -1,7 +1,6 @@
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { extractLeadName } from "./lead.helpers.js";
-import { leadsPost } from "./leads.client.js";
-import { usersPost } from "./users.client.js";
-import type { ToolContext } from "../types/tool.types.js";
+import type { ToolContext } from "../../../../types/tool.types.js";
 
 export interface LeadLike {
   id?: number;
@@ -82,8 +81,7 @@ async function loadPipelineNames(
   if (cache.pipelineNames) return cache.pipelineNames;
   const m = new Map<number, string>();
   try {
-    const res = await leadsPost<AllPipelinesResponse>(
-      "/getAllPipelines",
+    const res = await apiPost<AllPipelinesResponse>(`${SERVICE.LEADS}/getAllPipelines`,
       {},
       ctx,
     );
@@ -106,7 +104,7 @@ async function loadFormNames(
   if (cache.formNames) return cache.formNames;
   const m = new Map<number, string>();
   try {
-    const res = await leadsPost<AllFormsResponse>("/getAllLeadForms", {}, ctx);
+    const res = await apiPost<AllFormsResponse>(`${SERVICE.LEADS}/getAllLeadForms`, {}, ctx);
     for (const f of res.data ?? []) {
       // Backend returns { key, LeadFormName } from getLeadFormByCompany
       // and { key, LeadFormName } from getLeadForm
@@ -130,8 +128,7 @@ async function loadEmployeeNames(
   if (cache.employeeNames) return cache.employeeNames;
   const m = new Map<number, string>();
   try {
-    const res = await usersPost<EmployeesResponse>(
-      "/getActiveEmployeesListData",
+    const res = await apiPost<EmployeesResponse>(`${SERVICE.USERS}/getActiveEmployeesListData`,
       {},
       ctx,
     );

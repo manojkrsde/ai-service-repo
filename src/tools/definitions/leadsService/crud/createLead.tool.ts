@@ -15,7 +15,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -86,8 +86,7 @@ export const createLeadTool: ToolDefinition<typeof schema, CreateLeadResult> =
 
     handler: async (input, ctx) => {
       // Fetch the form to get the pipeline_id required by /addLeadResponse
-      const formRes = await leadsPost<EditFormResponse>(
-        "/editLeadForm",
+      const formRes = await apiPost<EditFormResponse>(`${SERVICE.LEADS}/editLeadForm`,
         { form_id: input.form_id },
         ctx,
       );
@@ -102,9 +101,9 @@ export const createLeadTool: ToolDefinition<typeof schema, CreateLeadResult> =
         throw new Error(`Form ${input.form_id} has no associated pipeline`);
       }
 
-      const res = await leadsPost<AddLeadResponse>(
+      const res = await apiPost<AddLeadResponse>(
         // Backend route has typo: /addLeadRespone (not /addLeadResponse)
-        "/addLeadRespone",
+        `${SERVICE.LEADS}/addLeadRespone`,
         {
           form_id: input.form_id,
           pipeline_id: pipelineId,

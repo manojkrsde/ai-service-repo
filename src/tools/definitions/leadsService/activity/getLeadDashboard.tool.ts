@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -94,8 +94,7 @@ export const getLeadDashboardTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["analytics", "leads", "dashboard"] },
 
   handler: async (input, ctx) => {
-    const res = await leadsPost<DashboardResponse>(
-      "/leadDashboard",
+    const res = await apiPost<DashboardResponse>(`${SERVICE.LEADS}/leadDashboard`,
       {
         form_id: input.form_id,
         pipeline_id: input.pipeline_id,

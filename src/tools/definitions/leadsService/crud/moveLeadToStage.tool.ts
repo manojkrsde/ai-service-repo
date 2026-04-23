@@ -14,7 +14,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -87,8 +87,8 @@ export const moveLeadToStageTool: ToolDefinition<
   handler: async (input, ctx) => {
     // Fetch lead and pipelines in parallel
     const [leadRes, pipelinesRes] = await Promise.all([
-      leadsPost<LeadByIdResponse>("/getLeadById", { lead_id: input.lead_id }, ctx),
-      leadsPost<AllPipelinesResponse>("/getAllPipelines", {}, ctx),
+      apiPost<LeadByIdResponse>(`${SERVICE.LEADS}/getLeadById`, { lead_id: input.lead_id }, ctx),
+      apiPost<AllPipelinesResponse>(`${SERVICE.LEADS}/getAllPipelines`, {}, ctx),
     ]);
 
     const lead = leadRes.data;
@@ -123,8 +123,7 @@ export const moveLeadToStageTool: ToolDefinition<
     // pipeline_char is the string representation of the stage index
     const newPipelineChar = String(stageIndex);
 
-    await leadsPost<UpdateResponse>(
-      "/updateLeadResponsePipeline",
+    await apiPost<UpdateResponse>(`${SERVICE.LEADS}/updateLeadResponsePipeline`,
       {
         lead_id: input.lead_id,
         pipeline_id: pipelineId,

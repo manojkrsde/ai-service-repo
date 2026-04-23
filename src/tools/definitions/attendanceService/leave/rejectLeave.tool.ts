@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -31,8 +31,7 @@ export const rejectLeaveTool: ToolDefinition<typeof schema, RejectLeaveResult> =
   meta: { version: "1.0.0", tags: ["leave", "attendance"] },
 
   handler: async (input, ctx) => {
-    const res = await attendancePost<LeaveResponse>(
-      "/rejectLeave",
+    const res = await apiPost<LeaveResponse>(`${SERVICE.ATTENDANCE}/rejectLeave`,
       { leave_id: input.leave_id, reason: input.reason },
       ctx,
     );

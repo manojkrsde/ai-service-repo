@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -59,7 +59,7 @@ export const addNoteToLeadTool: ToolDefinition<typeof schema, AddNoteResult> =
         title: input.title ?? "Note",
       };
 
-      const res = await leadsPost<NoteResponse>("/addLeadnote", body, ctx);
+      const res = await apiPost<NoteResponse>(`${SERVICE.LEADS}/addLeadnote`, body, ctx);
 
       const noteId = res.data?.id ?? res.id ?? null;
 

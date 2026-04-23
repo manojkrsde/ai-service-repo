@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -74,8 +74,7 @@ export const getOverallStageCountsTool: ToolDefinition<
     if (input.user_id !== undefined) body["user_id"] = input.user_id;
     if (input.source) body["parent_source"] = input.source;
 
-    const res = await leadsPost<StageCountsResponse>(
-      "/getOverallStageCounts",
+    const res = await apiPost<StageCountsResponse>(`${SERVICE.LEADS}/getOverallStageCounts`,
       body,
       ctx,
     );

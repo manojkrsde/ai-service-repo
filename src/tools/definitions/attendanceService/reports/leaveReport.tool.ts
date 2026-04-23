@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -62,7 +62,7 @@ export const leaveReportTool: ToolDefinition<
     if (input.department_id !== undefined) body["department_id"] = input.department_id;
     if (input.leave_type !== undefined) body["leave_type"] = input.leave_type;
 
-    const res = await attendancePost<ReportResponse>("/leaveReport", body, ctx);
+    const res = await apiPost<ReportResponse>(`${SERVICE.ATTENDANCE}/leaveReport`, body, ctx);
 
     const rows = res.data ?? [];
     return {

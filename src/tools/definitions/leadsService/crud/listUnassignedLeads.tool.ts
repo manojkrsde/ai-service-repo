@@ -12,8 +12,8 @@ import {
   enrichLeads,
   type EnrichedLead,
   type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
-import { leadsPost } from "../../../../helpers/leads.client.js";
+} from "../_shared/enrichment.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -79,8 +79,7 @@ export const listUnassignedLeadsTool: ToolDefinition<
     if (input.pipeline_id !== undefined)
       body["pipeline_id"] = input.pipeline_id;
 
-    const res = await leadsPost<QueueLeadsResponse>(
-      "/getAllQueueLeadsResponse",
+    const res = await apiPost<QueueLeadsResponse>(`${SERVICE.LEADS}/getAllQueueLeadsResponse`,
       body,
       ctx,
     );

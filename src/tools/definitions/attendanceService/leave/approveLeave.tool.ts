@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -34,7 +34,7 @@ export const approveLeaveTool: ToolDefinition<typeof schema, ApproveLeaveResult>
     const body: Record<string, unknown> = { leave_id: input.leave_id };
     if (input.comment !== undefined) body["comment"] = input.comment;
 
-    const res = await attendancePost<LeaveResponse>("/approveLeave", body, ctx);
+    const res = await apiPost<LeaveResponse>(`${SERVICE.ATTENDANCE}/approveLeave`, body, ctx);
 
     return {
       leave_id: input.leave_id,

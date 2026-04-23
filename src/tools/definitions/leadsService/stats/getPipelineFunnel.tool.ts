@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { resolveDateRange } from "../../../../helpers/time-range.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -93,8 +93,7 @@ export const getPipelineFunnelTool: ToolDefinition<
       dateBody["end_date"] = dateRange.end_date;
     }
 
-    const pipelinesRes = await leadsPost<AllPipelinesResponse>(
-      "/getAllPipelines",
+    const pipelinesRes = await apiPost<AllPipelinesResponse>(`${SERVICE.LEADS}/getAllPipelines`,
       {},
       ctx,
     );
@@ -112,8 +111,7 @@ export const getPipelineFunnelTool: ToolDefinition<
     const stageCounts = new Map<string, number>();
 
     try {
-      const dashRes = await leadsPost<DashboardPipelineResponse>(
-        "/leadDashboardPipeline",
+      const dashRes = await apiPost<DashboardPipelineResponse>(`${SERVICE.LEADS}/leadDashboardPipeline`,
         dashBody,
         ctx,
       );
@@ -133,8 +131,7 @@ export const getPipelineFunnelTool: ToolDefinition<
     }
 
     if (stageCounts.size === 0) {
-      const raw = await leadsPost<AllLeadsResponse>(
-        "/getAllLeadsResponse",
+      const raw = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
         { ...dashBody, limit: 2000, offset: 0 },
         ctx,
       );

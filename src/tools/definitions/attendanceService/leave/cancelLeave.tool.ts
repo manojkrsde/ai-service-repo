@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -34,7 +34,7 @@ export const cancelLeaveTool: ToolDefinition<typeof schema, CancelLeaveResult> =
     const body: Record<string, unknown> = { leave_id: input.leave_id };
     if (input.reason !== undefined) body["reason"] = input.reason;
 
-    const res = await attendancePost<LeaveResponse>("/cancelLeave", body, ctx);
+    const res = await apiPost<LeaveResponse>(`${SERVICE.ATTENDANCE}/cancelLeave`, body, ctx);
 
     return {
       leave_id: input.leave_id,

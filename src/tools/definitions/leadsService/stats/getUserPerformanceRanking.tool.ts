@@ -6,8 +6,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
-import { usersPost } from "../../../../helpers/users.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { resolveDateRange } from "../../../../helpers/time-range.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -97,8 +96,7 @@ export const getUserPerformanceRankingTool: ToolDefinition<
     const counts: Record<number, number> = {};
 
     if (input.metric === "leads_assigned") {
-      const res = await leadsPost<AllLeadsResponse>(
-        "/getAllLeadsResponse",
+      const res = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
         baseBody,
         ctx,
       );
@@ -108,8 +106,7 @@ export const getUserPerformanceRankingTool: ToolDefinition<
         }
       }
     } else {
-      const res = await leadsPost<AllCallsResponse>(
-        "/getLeadCalls",
+      const res = await apiPost<AllCallsResponse>(`${SERVICE.LEADS}/getLeadCalls`,
         baseBody,
         ctx,
       );
@@ -128,8 +125,7 @@ export const getUserPerformanceRankingTool: ToolDefinition<
 
     const nameMap = new Map<number, string>();
     try {
-      const usersRes = await usersPost<EmployeesResponse>(
-        "/getActiveEmployeesListData",
+      const usersRes = await apiPost<EmployeesResponse>(`${SERVICE.USERS}/getActiveEmployeesListData`,
         {},
         ctx,
       );

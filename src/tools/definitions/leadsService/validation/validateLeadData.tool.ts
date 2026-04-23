@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { normalizePhone } from "../../../../helpers/phone.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -106,8 +106,7 @@ export const validateLeadDataTool: ToolDefinition<
     if (input.check_phone_duplicate && phoneNorm) {
       try {
         const key = phoneNorm.last10 || phoneNorm.digits;
-        const res = await leadsPost<DuplicateResponse>(
-          "/checkDuplcateLeadByNumber",
+        const res = await apiPost<DuplicateResponse>(`${SERVICE.LEADS}/checkDuplcateLeadByNumber`,
           { mobile_no: key },
           ctx,
         );

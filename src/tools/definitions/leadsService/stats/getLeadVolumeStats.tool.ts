@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { resolveDateRange } from "../../../../helpers/time-range.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -119,8 +119,7 @@ export const getLeadVolumeStatsTool: ToolDefinition<
       baseBody["pipeline_id"] = input.pipeline_id;
     }
 
-    const dashboard = await leadsPost<DashboardResponse>(
-      "/leadDashboard",
+    const dashboard = await apiPost<DashboardResponse>(`${SERVICE.LEADS}/leadDashboard`,
       baseBody,
       ctx,
     );
@@ -144,8 +143,7 @@ export const getLeadVolumeStatsTool: ToolDefinition<
     }
 
     if (!aggregated) {
-      const raw = await leadsPost<AllLeadsResponse>(
-        "/getAllLeadsResponse",
+      const raw = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
         { ...baseBody, limit: 2000, offset: 0 },
         ctx,
       );

@@ -5,23 +5,10 @@
  * (the backend already resolves: assigned_to_name, LeadFormName, Pipeline
  * stages, CompanyName). No extra lookup calls needed.
  *
- * Backend response shape (via data_found):
- * {
- *   data: [{
- *     key, id, LeadName, CompanyName, Phone, Email,
- *     Pipeline (string[]),  assigned_to_name,  emp_id,
- *     assigned_to_number,  Items { "Total Leads", "Today's Leads", ... },
- *     CreatedDate,  LeadFormName,
- *     // + all DB columns: form_id, pipeline_id, pipeline_char,
- *     // lead_source, lead_source_child, priority, response,
- *     // mobile_no, email, assigned_to, follow_up_date, createdAt
- *   }],
- *   transferLeadIds: []
- * }
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -74,12 +61,7 @@ const schema = z.object({
     .max(200)
     .default(20)
     .describe("Maximum number of leads to return"),
-  offset: z
-    .number()
-    .int()
-    .min(0)
-    .default(0)
-    .describe("Pagination offset"),
+  offset: z.number().int().min(0).default(0).describe("Pagination offset"),
 });
 
 interface LeadItem {
@@ -167,7 +149,10 @@ export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
     if (input.source_child) body["child_source"] = input.source_child;
     if (input.user_id !== undefined) body["user_id"] = input.user_id;
 
-    const res = await leadsPost<LeadsResponse>("/getAllLeadsResponse", body, ctx);
+    const res = await apiPost<LeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
+      body,
+      ctx,
+    );
 
     const records = res.data ?? [];
 

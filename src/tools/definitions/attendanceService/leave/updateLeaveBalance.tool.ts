@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -55,8 +55,7 @@ export const updateLeaveBalanceTool: ToolDefinition<
     };
     if (input.year !== undefined) body["year"] = input.year;
 
-    const res = await attendancePost<UpdateBalanceResponse>(
-      "/updateLeaveBalance",
+    const res = await apiPost<UpdateBalanceResponse>(`${SERVICE.ATTENDANCE}/updateLeaveBalance`,
       body,
       ctx,
     );

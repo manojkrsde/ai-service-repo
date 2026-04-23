@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -62,8 +62,8 @@ export const listFormsTool: ToolDefinition<typeof schema, ListFormsResult> = {
   handler: async (_input, ctx) => {
     // Fetch forms and pipelines in parallel
     const [formsRes, pipelinesRes] = await Promise.all([
-      leadsPost<AllFormsResponse>("/getAllLeadForms", {}, ctx),
-      leadsPost<AllPipelinesResponse>("/getAllPipelines", {}, ctx),
+      apiPost<AllFormsResponse>(`${SERVICE.LEADS}/getAllLeadForms`, {}, ctx),
+      apiPost<AllPipelinesResponse>(`${SERVICE.LEADS}/getAllPipelines`, {}, ctx),
     ]);
 
     const pipelineNameMap = new Map<number, string>();

@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -85,8 +85,7 @@ export const getLeadRemindersTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["leads", "reminders"] },
 
   handler: async (input, ctx) => {
-    const res = await leadsPost<ReminderResponse>(
-      "/getLeadReminder",
+    const res = await apiPost<ReminderResponse>(`${SERVICE.LEADS}/getLeadReminder`,
       { form_id: input.form_id },
       ctx,
     );

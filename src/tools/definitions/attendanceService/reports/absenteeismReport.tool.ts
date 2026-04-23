@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -67,7 +67,7 @@ export const absenteeismReportTool: ToolDefinition<
     };
     if (input.department_id !== undefined) body["department_id"] = input.department_id;
 
-    const res = await attendancePost<ReportResponse>("/absenteeismReport", body, ctx);
+    const res = await apiPost<ReportResponse>(`${SERVICE.ATTENDANCE}/absenteeismReport`, body, ctx);
 
     const rows = res.data ?? [];
     const flaggedCount = rows.filter((r) => r.flagged).length;

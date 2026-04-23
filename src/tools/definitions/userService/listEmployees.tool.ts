@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 
-import { usersPost } from "../../../helpers/users.client.js";
+import { SERVICE, apiPost } from "../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../types/tool.types.js";
 import { toolRegistry } from "../../registry.js";
 
@@ -136,8 +136,8 @@ export const listEmployeesTool: ToolDefinition<
   meta: { version: "2.0.0", tags: ["users", "team", "lookup"] },
 
   handler: async (input, ctx) => {
-    const res = await usersPost<EmployeesResponse>(
-      "/getEmployeesListData",
+    const res = await apiPost<EmployeesResponse>(
+      `${SERVICE.USERS}/getEmployeesListData`,
       {},
       ctx,
       { injectCompanyContext: false },

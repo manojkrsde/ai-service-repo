@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -66,8 +66,7 @@ export const getLeaveHistoryTool: ToolDefinition<
     if (input.end_date !== undefined) body["end_date"] = input.end_date;
     if (input.status !== "all") body["status"] = input.status;
 
-    const res = await attendancePost<LeaveHistoryResponse>(
-      "/getLeaveHistory",
+    const res = await apiPost<LeaveHistoryResponse>(`${SERVICE.ATTENDANCE}/getLeaveHistory`,
       body,
       ctx,
     );

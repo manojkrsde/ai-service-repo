@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -50,8 +50,7 @@ export const markReminderDoneTool: ToolDefinition<
 
   handler: async (input, ctx) => {
     // Backend updateFollowUpStatus reads req.body.id (not reminder_id)
-    await leadsPost<UpdateResponse>(
-      "/updateLeadFollowUp",
+    await apiPost<UpdateResponse>(`${SERVICE.LEADS}/updateLeadFollowUp`,
       { id: input.reminder_id, status: 1 },
       ctx,
     );

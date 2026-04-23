@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 
-import { usersPost } from "../../../helpers/users.client.js";
+import { SERVICE, apiPost } from "../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../types/tool.types.js";
 import { toolRegistry } from "../../registry.js";
 
@@ -55,8 +55,7 @@ export const listDepartmentsTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["departments", "organization", "lookup"] },
 
   handler: async (_input, ctx) => {
-    const res = await usersPost<DepartmentsResponse>(
-      "/getDepartment",
+    const res = await apiPost<DepartmentsResponse>(`${SERVICE.USERS}/getDepartment`,
       {},
       ctx,
       {

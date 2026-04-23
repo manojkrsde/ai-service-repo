@@ -19,8 +19,8 @@ import {
   createEnrichmentCache,
   type EnrichedLead,
   type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
-import { leadsPost } from "../../../../helpers/leads.client.js";
+} from "../_shared/enrichment.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -107,15 +107,15 @@ export const getLeadDetailsTool: ToolDefinition<typeof schema, LeadDetails> = {
     const body = { lead_id: input.lead_id };
 
     const [leadRes, notesRes, callsRes, activitiesRes] = await Promise.all([
-      leadsPost<LeadByIdResponse>("/getLeadById", body, ctx),
+      apiPost<LeadByIdResponse>(`${SERVICE.LEADS}/getLeadById`, body, ctx),
       input.include.includes("notes")
-        ? leadsPost<NotesResponse>("/getLeadNote", body, ctx)
+        ? apiPost<NotesResponse>(`${SERVICE.LEADS}/getLeadNote`, body, ctx)
         : Promise.resolve<NotesResponse>({ data: [] }),
       input.include.includes("calls")
-        ? leadsPost<CallsResponse>("/getLeadCalls", body, ctx)
+        ? apiPost<CallsResponse>(`${SERVICE.LEADS}/getLeadCalls`, body, ctx)
         : Promise.resolve<CallsResponse>({ data: [] }),
       input.include.includes("activities")
-        ? leadsPost<ActivitiesResponse>("/getLeadActivities", body, ctx)
+        ? apiPost<ActivitiesResponse>(`${SERVICE.LEADS}/getLeadActivities`, body, ctx)
         : Promise.resolve<ActivitiesResponse>({ data: [] }),
     ]);
 

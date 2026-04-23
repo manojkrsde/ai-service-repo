@@ -11,8 +11,8 @@ import {
   enrichLeads,
   type EnrichedLead,
   type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
-import { leadsPost } from "../../../../helpers/leads.client.js";
+} from "../_shared/enrichment.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -58,8 +58,7 @@ export const searchLeadByEmailTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["search", "leads"] },
 
   handler: async (input, ctx) => {
-    const res = await leadsPost<AllLeadsResponse>(
-      "/getAllLeadsResponse",
+    const res = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
       {
         search_text: input.email,
         limit: input.limit,

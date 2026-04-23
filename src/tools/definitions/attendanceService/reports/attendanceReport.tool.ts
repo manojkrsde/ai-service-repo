@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -110,8 +110,8 @@ export const attendanceReportTool: ToolDefinition<
       endDate: input.end_date,
     }).toString();
 
-    const res = await attendancePost<DetailedReportResponse>(
-      `/getAllEmployeesDetailedAttendanceReport?${qs}`,
+    const res = await apiPost<DetailedReportResponse>(
+      `${SERVICE.ATTENDANCE}/getAllEmployeesDetailedAttendanceReport?${qs}`,
       body,
       ctx,
       { injectCompanyContext: false },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -55,8 +55,7 @@ export const getAttendanceByEmployeeTool: ToolDefinition<
   meta: { version: "1.0.0", tags: ["attendance"] },
 
   handler: async (input, ctx) => {
-    const res = await attendancePost<AttendanceResponse>(
-      "/getAttendanceByEmployee",
+    const res = await apiPost<AttendanceResponse>(`${SERVICE.ATTENDANCE}/getAttendanceByEmployee`,
       {
         employee_id: input.employee_id,
         start_date: input.start_date,

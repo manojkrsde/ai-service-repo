@@ -12,8 +12,8 @@ import {
   enrichLeads,
   type EnrichedLead,
   type LeadLike,
-} from "../../../../helpers/lead-enrichment.helper.js";
-import { leadsPost } from "../../../../helpers/leads.client.js";
+} from "../_shared/enrichment.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { normalizePhone } from "../../../../helpers/phone.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -65,8 +65,7 @@ export const checkDuplicatePhoneTool: ToolDefinition<
     const normalized = normalizePhone(input.phone);
     const key = normalized.last10 || normalized.digits;
 
-    const res = await leadsPost<DuplicateResponse>(
-      "/checkDuplcateLeadByNumber",
+    const res = await apiPost<DuplicateResponse>(`${SERVICE.LEADS}/checkDuplcateLeadByNumber`,
       { mobile_no: key },
       ctx,
     );

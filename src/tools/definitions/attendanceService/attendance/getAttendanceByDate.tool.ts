@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { attendancePost } from "../../../../helpers/attendance.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -58,8 +58,7 @@ export const getAttendanceByDateTool: ToolDefinition<
     if (input.department_id !== undefined) body["department_id"] = input.department_id;
     if (input.employee_id !== undefined) body["employee_id"] = input.employee_id;
 
-    const res = await attendancePost<AttendanceResponse>(
-      "/getAttendanceByDate",
+    const res = await apiPost<AttendanceResponse>(`${SERVICE.ATTENDANCE}/getAttendanceByDate`,
       body,
       ctx,
     );

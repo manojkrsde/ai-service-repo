@@ -9,7 +9,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -76,8 +76,7 @@ export const updateLeadTool: ToolDefinition<typeof schema, UpdateLeadResult> =
       // Priority update goes through a dedicated endpoint
       if (input.priority !== undefined) {
         calls.push(
-          leadsPost<UpdateResponse>(
-            "/updateLeadPriority",
+          apiPost<UpdateResponse>(`${SERVICE.LEADS}/updateLeadPriority`,
             { lead_id: input.lead_id, priority: input.priority },
             ctx,
           ),
@@ -96,7 +95,7 @@ export const updateLeadTool: ToolDefinition<typeof schema, UpdateLeadResult> =
           body["response"] = input.fields;
           updatedFields.push(...Object.keys(input.fields));
         }
-        calls.push(leadsPost<UpdateResponse>("/editLeadResponse", body, ctx));
+        calls.push(apiPost<UpdateResponse>(`${SERVICE.LEADS}/editLeadResponse`, body, ctx));
       }
 
       if (calls.length === 0) {

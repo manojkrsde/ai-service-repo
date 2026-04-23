@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import { resolveDateRange } from "../../../../helpers/time-range.helper.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
@@ -95,8 +95,7 @@ export const getFormLeadStatsTool: ToolDefinition<
       dateBody["end_date"] = dateRange.end_date;
     }
 
-    const formsRes = await leadsPost<AllFormsResponse>(
-      "/getAllLeadForms",
+    const formsRes = await apiPost<AllFormsResponse>(`${SERVICE.LEADS}/getAllLeadForms`,
       {},
       ctx,
     );
@@ -111,8 +110,7 @@ export const getFormLeadStatsTool: ToolDefinition<
     let forms: FormStat[] = [];
 
     try {
-      const statsRes = await leadsPost<FormStatsResponse>(
-        "/getLeadStatsByFormKey",
+      const statsRes = await apiPost<FormStatsResponse>(`${SERVICE.LEADS}/getLeadStatsByFormKey`,
         statsBody,
         ctx,
       );
@@ -144,8 +142,7 @@ export const getFormLeadStatsTool: ToolDefinition<
       };
       if (input.form_id !== undefined) rawBody["form_id"] = input.form_id;
 
-      const raw = await leadsPost<AllLeadsResponse>(
-        "/getAllLeadsResponse",
+      const raw = await apiPost<AllLeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
         rawBody,
         ctx,
       );

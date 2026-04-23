@@ -30,7 +30,7 @@ import {
   markAuthCodeUsed,
   createAccessToken,
 } from "../../services/oauthStore.service.js";
-import { resolveUserAuth } from "../../helpers/userAuth.client.js";
+import { resolveUserAuth } from "../../helpers/api.client.js";
 import { parseAxiosError } from "../../helpers/axiosError.helper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
