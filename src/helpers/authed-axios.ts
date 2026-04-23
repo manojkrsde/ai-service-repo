@@ -31,6 +31,8 @@ export interface AuthedPostOptions {
   injectCompanyContext?: boolean;
 }
 
+const PERMISSION_SENTINEL = "PERMISSION_MISSING:";
+
 /**
  * POST to a backend service with automatic auth header injection.
  *
@@ -58,9 +60,20 @@ export async function authedPost<T>(
     return res.data as T;
   } catch (err: unknown) {
     if (isAxios401(err)) {
+      const backendMessage = parseAxiosError(err)?.message;
+      if (backendMessage.includes(PERMISSION_SENTINEL)) {
+        logger.warn(
+          { email: auth.email, url },
+          "401 permission denial — token kept, no revocation",
+        );
+        throw new Error(
+          `[PERMISSION_DENIED] ${backendMessage.replace(PERMISSION_SENTINEL, "").trim()}`,
+        );
+      }
+
       logger.warn(
         { email: auth.email, url },
-        "401 from backend — revoking MCP token and forcing re-authentication",
+        "401 auth failure — revoking MCP token and forcing re-authentication",
       );
       revokeAccessToken(auth.accessToken).catch((revokeErr) => {
         logger.warn(
