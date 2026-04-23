@@ -17,36 +17,54 @@ interface FormSummary {
   name: string;
   pipeline_id: number | null;
   pipeline_name: string | null;
-  field_count: number;
+  fields_count: number;
+  company_id: number;
+  company_type: string;
+  status: string;
+  assigned_employees_id: number[] | [];
+  created_at: string;
+  pipeline_stages: string[];
+  company_name: string;
 }
 
 interface ListFormsResult {
   forms: FormSummary[];
 }
 
-interface FieldEntry {
-  fieldName?: string;
-  [key: string]: unknown;
-}
-
 interface FormRecord {
-  id?: number;
-  name?: string;
-  pipeline_id?: number | null;
-  structure?: FieldEntry[] | unknown;
+  key: number;
+  LeadFormName: string;
+  pipeline_id: number | null;
+  structure: any;
+  Pipeline: string | null;
+  field_count: number;
+  CompanyId: number;
+  CompanyType: string;
+  CompanyName: string;
+  CreatedDate: string;
+  Status: string;
+  employees: number[] | [];
 }
 
 interface AllFormsResponse {
-  data?: FormRecord[];
+  data: {
+    data: FormRecord[];
+  };
 }
 
 interface PipelineRecord {
-  id?: number;
-  pipeline_name?: string;
+  key?: number;
+  Pipeline_Name: string;
+  CreatedDate: string;
+  Status: string;
+  Stages: string[];
+  Type: string;
 }
 
 interface AllPipelinesResponse {
-  data?: PipelineRecord[];
+  data: {
+    data: PipelineRecord[];
+  };
 }
 
 export const listFormsTool: ToolDefinition<typeof schema, ListFormsResult> = {
@@ -60,31 +78,49 @@ export const listFormsTool: ToolDefinition<typeof schema, ListFormsResult> = {
   meta: { version: "1.0.0", tags: ["config", "forms"] },
 
   handler: async (_input, ctx) => {
-    // Fetch forms and pipelines in parallel
     const [formsRes, pipelinesRes] = await Promise.all([
-      apiPost<AllFormsResponse>(`${SERVICE.LEADS}/getAllLeadForms`, {}, ctx),
-      apiPost<AllPipelinesResponse>(`${SERVICE.LEADS}/getAllPipelines`, {}, ctx),
+      apiPost<AllFormsResponse>(`${SERVICE.LEADS}/getAllLeadForms`, {}, ctx, {
+        injectCompanyContext: false,
+      }),
+      apiPost<AllPipelinesResponse>(
+        `${SERVICE.LEADS}/getAllPipelines`,
+        {},
+        ctx,
+        {
+          injectCompanyContext: false,
+        },
+      ),
     ]);
 
-    const pipelineNameMap = new Map<number, string>();
-    for (const p of pipelinesRes.data ?? []) {
-      if (p.id !== undefined) {
-        pipelineNameMap.set(p.id, p.pipeline_name ?? `Pipeline ${p.id}`);
+    const formsApiRes = formsRes.data.data ?? [];
+    const pipelineApiRes = pipelinesRes.data.data ?? [];
+
+    const pipelineNameMap = new Map<number, PipelineRecord>();
+    for (const p of pipelineApiRes) {
+      if (p.key !== undefined) {
+        pipelineNameMap.set(p.key, p);
       }
     }
 
-    const forms: FormSummary[] = (formsRes.data ?? []).map((f) => {
+    const forms: FormSummary[] = formsApiRes.map((f) => {
       const structure = f.structure;
       const fieldCount = Array.isArray(structure) ? structure.length : 0;
       const pid = f.pipeline_id ?? null;
+      const pipeline = pid !== null ? pipelineNameMap.get(pid) : null;
 
       return {
-        id: f.id ?? 0,
-        name: f.name ?? `Form ${f.id ?? "?"}`,
+        id: f.key ?? 0,
+        name: f.LeadFormName ?? `Form ${f.key ?? "?"}`,
         pipeline_id: pid,
-        pipeline_name:
-          pid !== null ? (pipelineNameMap.get(pid) ?? null) : null,
-        field_count: fieldCount,
+        pipeline_name: pipeline?.Pipeline_Name ?? `Pipeline ${pid}`,
+        pipeline_stages: pipeline?.Stages ?? [],
+        fields_count: fieldCount,
+        company_id: f.CompanyId,
+        company_type: f.CompanyType,
+        company_name: f.CompanyName,
+        status: f.Status,
+        assigned_employees_id: f.employees,
+        created_at: f.CreatedDate,
       };
     });
 
