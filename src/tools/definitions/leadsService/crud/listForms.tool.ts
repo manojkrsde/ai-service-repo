@@ -69,10 +69,22 @@ interface AllPipelinesResponse {
 
 export const listFormsTool: ToolDefinition<typeof schema, ListFormsResult> = {
   name: "list_forms",
-  title: "List Forms",
+  title: "Browse lead capture forms — pipelines, stages, and assignments",
   description:
-    "Returns all lead capture forms available for the company, including their associated pipeline and the number of fields. " +
-    "Use this to discover form IDs before calling create_lead or get_form_lead_stats.",
+    "Returns all lead capture forms configured for the company. Each form includes: " +
+    "id, name, status, field count, assigned employee IDs, creation date, and the full " +
+    "pipeline association — pipeline id, name, and ordered stage list (e.g. New, Follow Up, Won, Lost). " +
+    "\n\nUNDERSTANDING THE FLOW: Pipelines define the stages a lead moves through. " +
+    "A form is linked to one pipeline at creation time, meaning every lead captured " +
+    "via that form follows the same pipeline and its stages. " +
+    "form_id is required by most lead tools (list_leads, create_lead, move_lead_to_stage, " +
+    "get_form_lead_stats, get_lead_follow_ups, get_overdue_leads) — so this is almost " +
+    "always the first tool to call. " +
+    "\n\nUSE THIS TOOL TO: resolve a form name to its form_id, discover which pipeline " +
+    "and stages apply to a set of leads, know valid stage names before moving a lead, " +
+    "check which employees are assigned to a form, or map out the full lead capture structure. " +
+    "\n\nNOTE: If the user asks about leads, stages, or pipeline flow and no form_id is " +
+    "known yet — always call this first.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
   meta: { version: "1.0.0", tags: ["config", "forms"] },

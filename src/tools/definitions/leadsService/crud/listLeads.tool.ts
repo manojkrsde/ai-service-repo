@@ -22,7 +22,7 @@ const schema = z.object({
     ),
   start_date: z
     .string()
-    .default("2000-01-01")
+    .default("2026-01-01")
     .describe("Start date filter in YYYY-MM-DD format (defaults to all-time)"),
   end_date: z
     .string()
@@ -58,8 +58,8 @@ const schema = z.object({
     .number()
     .int()
     .min(1)
-    .max(200)
-    .default(20)
+    .max(500)
+    .default(100)
     .describe("Maximum number of leads to return"),
   offset: z.number().int().min(0).default(0).describe("Pagination offset"),
 });
@@ -71,7 +71,7 @@ interface LeadItem {
   email: string;
   source: string;
   source_child: string | null;
-  stage: string;
+  pipeline_stage: string;
   priority: string;
   assigned_to_name: string;
   assigned_to_number: string | null;
@@ -116,20 +116,31 @@ interface LeadRecord {
 }
 
 interface LeadsResponse {
-  data?: LeadRecord[];
-  transferLeadIds?: number[];
+  data: {
+    data: LeadRecord[];
+    transferLeadIds?: number[];
+  };
 }
 
 export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
   name: "list_leads",
-  title: "List Leads",
+  title:
+    "List leads — enriched records with stage, source, priority & assignee",
   description:
-    "Lists leads with full enriched details: name, phone, email, stage, priority, " +
-    "assigned salesperson, follow-up date, and form name. " +
-    "The backend already resolves all IDs to human-readable names — no extra lookups needed. " +
-    "Use this to answer: Show me all leads this week. Who's assigned lead [form]? " +
-    "How many leads came from Facebook? What leads are in the Demo stage? " +
-    "IMPORTANT: form_id is required — use list_forms first if you don't know it.",
+    "Returns leads for a given form with full enriched details: name, phone, email, " +
+    "source (parent + child), pipeline stage, priority, assigned salesperson, " +
+    "follow-up date, form name, and creation date. " +
+    "Also returns aggregate stats: total leads, today's, yesterday's, and this month's counts. " +
+    "All IDs are pre-resolved to human-readable names — no follow-up lookups needed. " +
+    "\n\nUNDERSTANDING THE FLOW: Every lead belongs to a form, and every form is tied to a " +
+    "pipeline. form_id is the entry point — without it leads cannot be fetched. " +
+    "If the user references a form by name or asks about leads without providing a form_id, " +
+    "call list_forms first to resolve it. " +
+    "\n\nUSE THIS TOOL TO: list all leads for a form, filter by pipeline stage, lead source, " +
+    "date range, or assigned user, check how many leads came in today or this month, " +
+    "or find which leads are in a specific stage like Won or Follow Up. " +
+    "\n\nNOTE: form_id is always required. Use list_forms to discover it if unknown. " +
+    "For a single lead's full detail — notes, calls, activity — use get_lead_details instead.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
   meta: { version: "2.0.0", tags: ["leads", "list"] },
@@ -149,12 +160,13 @@ export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
     if (input.source_child) body["child_source"] = input.source_child;
     if (input.user_id !== undefined) body["user_id"] = input.user_id;
 
-    const res = await apiPost<LeadsResponse>(`${SERVICE.LEADS}/getAllLeadsResponse`,
+    const res = await apiPost<LeadsResponse>(
+      `${SERVICE.LEADS}/getAllLeadsResponse`,
       body,
       ctx,
     );
 
-    const records = res.data ?? [];
+    const records = res.data.data ?? [];
 
     // Extract stats from the first record's Items field (same for all)
     const rawItems = records[0]?.Items;
@@ -174,7 +186,7 @@ export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
       email: r.Email ?? r.email ?? "",
       source: r.lead_source ?? "unknown",
       source_child: r.lead_source_child ?? null,
-      stage: r.pipeline_char ?? "unknown",
+      pipeline_stage: r.pipeline_char ?? "unknown",
       priority: r.priority ?? "Medium",
       assigned_to_name: r.assigned_to_name ?? "Unassigned",
       assigned_to_number: r.assigned_to_number ?? null,
@@ -188,6 +200,7 @@ export const listLeadsTool: ToolDefinition<typeof schema, ListLeadsResult> = {
       returned: leads.length,
       stats,
       leads,
+      transfer_lead_ids: res.data.transferLeadIds,
     };
   },
 };
