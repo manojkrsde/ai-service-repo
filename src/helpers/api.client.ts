@@ -62,7 +62,8 @@ export async function apiServicePost<T>(
     const axiosErr = err as {
       response?: { status?: number; data?: unknown };
     };
-    const status = axiosErr.response?.status ?? StatusCodes.INTERNAL_SERVER_ERROR;
+    const status =
+      axiosErr.response?.status ?? StatusCodes.INTERNAL_SERVER_ERROR;
     logger.error(
       { status, path, body: axiosErr.response?.data, err },
       "Service-to-service POST failed",

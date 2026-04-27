@@ -91,6 +91,12 @@ function extractMessage(data: any): string {
     if (typeof first?.message === "string") return first.message;
   }
 
+  if (typeof data == "object") {
+    const message = data?.message;
+    if (typeof message === "string") return message;
+    if (typeof message === "object") return message?.message;
+  }
+
   if (data.data) return extractMessage(data.data);
 
   return "Request failed";
