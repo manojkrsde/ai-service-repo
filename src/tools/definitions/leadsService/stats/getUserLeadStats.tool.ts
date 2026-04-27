@@ -29,10 +29,7 @@ const schema = z.object({
     .describe(
       "Start of date range in YYYY-MM-DD. Omit both dates to use the backend's default (current month).",
     ),
-  end_date: z
-    .string()
-    .optional()
-    .describe("End of date range in YYYY-MM-DD."),
+  end_date: z.string().optional().describe("End of date range in YYYY-MM-DD."),
   employee_id: z
     .number()
     .int()
@@ -102,24 +99,31 @@ export const getUserLeadStatsTool: ToolDefinition<
 > = {
   name: "get_user_lead_stats",
   title:
-    "Get lead/deal dashboard stats — totals, growth, trends, sources, performers, pipelines",
+    "Get lead/deal stats — personal dashboard or tenant-wide analytics with growth, trends, sources, performers, and pipelines",
   description:
-    "Returns the full dashboard analytics block for leads or deals over a date range. Includes:\n" +
-    "  • Headline metrics (total_new, converted, lost, in_process) each with growth-vs-previous-period and previous value.\n" +
+    "Single source for all lead/deal performance questions — works as both a personal dashboard " +
+    "(non-admin callers are auto-scoped server-side to their own leads) and a tenant-wide or " +
+    "employee/department-scoped analytics view (admin only). " +
+    "\n\nReturns:\n" +
+    "  • Headline metrics (total_new, converted, lost, in_process) each with current value, " +
+    "growth-vs-previous-period %, and previous-period value.\n" +
     "  • conversion_rate and losing_rate (also with growth comparison).\n" +
     "  • daily_trends — per-day counts split by pipeline.\n" +
     "  • sources — breakdown by lead_source / sub_source per pipeline + stage.\n" +
     "  • performers — per-employee counts with avg first-response hours.\n" +
     "  • pipeline_wise_distribution — stage-by-stage counts grouped by pipeline.\n" +
-    "  • pipelines — list of pipelines with their ordered stages.\n" +
-    "\n\nUNDERSTANDING THE FLOW: This is the single source for 'how are leads/deals doing?' " +
-    "questions. Non-admin callers are auto-scoped server-side to their own leads (employee_id " +
-    "and department_id are ignored for them). Admins can scope to one employee or department. " +
-    "\n\nUSE THIS TOOL TO: build the lead-dashboard view, answer 'how many leads converted " +
-    "this month vs last?', rank salespeople by output, see where in the pipeline leads sit, " +
-    "or break down leads by source. " +
-    "\n\nNOTE: For per-form / per-city / per-state breakdowns, use get_lead_stats_by_form_field. " +
-    "For raw stage-by-stage counts on a single form, use get_overall_stage_counts.",
+    "  • pipelines — ordered list of pipelines with their stages.\n" +
+    "\n\nUNDERSTANDING THE FLOW: Non-admin callers automatically see only their own leads — " +
+    "employee_id and department_id filters are silently ignored for them. Admins see all leads " +
+    "by default and can narrow to one employee or department. Both lead and deal stats share " +
+    "this tool — set kind='deal' to hit /getUserDealStats instead. " +
+    "\n\nUSE THIS TOOL TO: answer 'how am I doing this month?' (personal dashboard), 'how many " +
+    "leads converted vs last period?' (growth comparison), 'who is the top performer?' " +
+    "(performers block), 'where do leads come from?' (sources block), or 'where in the pipeline " +
+    "are leads stacking up?' (pipeline_wise_distribution). " +
+    "\n\nNOTE: For per-city / per-state / per-country geographic breakdowns use " +
+    "get_lead_stats_by_form_field. For raw stage-by-stage counts scoped to a single form use " +
+    "get_overall_stage_counts.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
   meta: { version: "1.0.0", tags: ["analytics", "leads", "dashboard"] },
@@ -146,7 +150,11 @@ export const getUserLeadStatsTool: ToolDefinition<
     const body: Record<string, unknown> = { type };
     if (Object.keys(filters).length > 0) body["filters"] = filters;
 
-    const res = await apiPost<StatsResponse>(`${SERVICE.LEADS}${path}`, body, ctx);
+    const res = await apiPost<StatsResponse>(
+      `${SERVICE.LEADS}${path}`,
+      body,
+      ctx,
+    );
 
     const leads = res.data?.leads ?? {};
 
