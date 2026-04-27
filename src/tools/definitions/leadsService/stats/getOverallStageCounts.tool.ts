@@ -1,13 +1,10 @@
-// AUDIT (v1):
-// - Verdict: KEEP
-// - Thin, correct wrapper on `/getOverallStageCounts`.
-// - Lighter alternative to `get_pipeline_funnel` — no drop-off math.
-
 /**
- * Answers: "How many leads are in each stage? What's the pipeline breakdown?"
+ * Stage-by-stage lead counts for a single form.
  *
- * Calls /getOverallStageCounts for a quick stage-by-stage count.
- * Lighter than get_pipeline_funnel — no drop-off math, just raw counts.
+ * Wraps POST /getOverallStageCounts. Backend middleware requires
+ * signature + company_id + company_type + form_id; user_id /
+ * parent_source / child_source are optional filters. Non-admin callers
+ * are auto-scoped to their own leads server-side.
  */
 import { z } from "zod";
 
@@ -21,7 +18,7 @@ const schema = z.object({
     .int()
     .positive()
     .describe(
-      "The form ID to get stage counts for. Use list_forms to discover available forms.",
+      "Lead form ID to count stages for. Use list_forms to discover form IDs.",
     ),
   user_id: z
     .number()
@@ -29,63 +26,72 @@ const schema = z.object({
     .positive()
     .optional()
     .describe(
-      "Scope counts to a specific user's leads (optional — omit for all users)",
+      "Filter to one assignee's leads (admin only — non-admin callers are auto-scoped server-side).",
     ),
   source: z
     .string()
     .optional()
     .describe(
-      "Filter by lead source, e.g. facebook, whatsapp, manual (optional)",
+      "Filter by parent lead source, e.g. 'facebook', 'whatsapp', 'manual'.",
     ),
+  source_child: z
+    .string()
+    .optional()
+    .describe("Filter by child lead source (sub-source under the parent)."),
 });
 
-interface OverallStageCountsResult {
+interface StageCountsResult {
   form_id: number;
-  stage_counts: Record<string, number>;
   total: number;
+  stage_counts: Record<string, number>;
 }
 
 interface StageCountsResponse {
-  data?: {
-    overallStageCounts?: Record<string, number>;
+  data: {
+    overallStageCounts: Record<string, number>;
   };
 }
 
 export const getOverallStageCountsTool: ToolDefinition<
   typeof schema,
-  OverallStageCountsResult
+  StageCountsResult
 > = {
   name: "get_overall_stage_counts",
-  title: "Get Overall Stage Counts",
+  title: "Get overall stage counts — leads-per-stage on a form",
   description:
-    "Returns the number of leads at each pipeline stage for a specific form. " +
-    "Faster and lighter than get_pipeline_funnel when you just need raw counts without drop-off analysis. " +
-    "Use this to answer: How many leads are in each stage? What's the breakdown of our pipeline? " +
-    "How many leads are in the Demo stage?",
+    "Returns the count of leads currently sitting in each pipeline stage for the given form. " +
+    "Output is a flat map { stage_name: count } plus a total. " +
+    "\n\nUNDERSTANDING THE FLOW: Every lead has exactly one current stage (`pipeline_char`). " +
+    "This tool groups by that field for one form. Non-admin callers are auto-scoped server-side " +
+    "to leads they are assigned to. " +
+    "\n\nUSE THIS TOOL TO: see the funnel for a single form (how many leads in New / Contacted / " +
+    "Demo / Won / Lost), spot-check stage distribution before acting on overdue leads, or " +
+    "compute conversion ratios. " +
+    "\n\nNOTE: For multi-pipeline / multi-period stats with growth comparisons use " +
+    "get_user_lead_stats — its `pipeline_wise_distribution` block covers this in more detail.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
-  meta: { version: "1.0.0", tags: ["analytics", "pipeline", "leads"] },
+  meta: { version: "2.0.0", tags: ["analytics", "leads", "pipeline"] },
 
   handler: async (input, ctx) => {
-    const body: Record<string, unknown> = {
-      form_id: input.form_id,
-    };
-
+    const body: Record<string, unknown> = { form_id: input.form_id };
     if (input.user_id !== undefined) body["user_id"] = input.user_id;
     if (input.source) body["parent_source"] = input.source;
+    if (input.source_child) body["child_source"] = input.source_child;
 
-    const res = await apiPost<StageCountsResponse>(`${SERVICE.LEADS}/getOverallStageCounts`,
+    const res = await apiPost<StageCountsResponse>(
+      `${SERVICE.LEADS}/getOverallStageCounts`,
       body,
       ctx,
     );
 
     const stageCounts = res.data?.overallStageCounts ?? {};
-    const total = Object.values(stageCounts).reduce((sum, n) => sum + n, 0);
+    const total = Object.values(stageCounts).reduce((s, n) => s + n, 0);
 
     return {
       form_id: input.form_id,
-      stage_counts: stageCounts,
       total,
+      stage_counts: stageCounts,
     };
   },
 };
