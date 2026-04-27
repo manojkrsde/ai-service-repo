@@ -1,14 +1,12 @@
-// AUDIT (v1):
-// - Verdict: REWRITE
-// - Rewritten: uses `/getLeadReminder` as source of truth (pending
-//   reminders only, status=0) instead of the lead's stale follow_up_date.
-
 /**
- * Answers: "Which leads haven't been followed up? Who's responsible?"
+ * Leads with pending follow-up reminders whose due date has passed.
  *
- * Uses `/getLeadReminder` as the source of truth — the backend returns
- * only pending reminders (status=0) and groups them into today / due
- * (overdue) / upcoming buckets.
+ * Sourced from POST /getLeadReminder (pending reminders only, status=0).
+ * The backend pre-buckets reminders into today / due (overdue) / upcoming;
+ * this tool surfaces the `due` bucket with extra `days_overdue` metadata.
+ *
+ * Middleware requires signature + form_id; company_id / company_type / limit
+ * / offset are optional. Non-admin callers are auto-scoped to their own leads.
  */
 import { z } from "zod";
 
@@ -22,7 +20,7 @@ const schema = z.object({
     .int()
     .positive()
     .describe(
-      "The form ID to scope overdue reminders to. Use list_forms to discover available forms.",
+      "Lead form ID to scope reminders to. Use list_forms to discover form IDs.",
     ),
   min_days_overdue: z
     .number()
@@ -30,7 +28,7 @@ const schema = z.object({
     .min(0)
     .default(1)
     .describe(
-      "Minimum number of days past the follow-up date to include (0 = include anything already past due)",
+      "Minimum days past the follow-up date to include. 0 returns anything past due (including today's date that is already past).",
     ),
   limit: z
     .number()
@@ -38,7 +36,7 @@ const schema = z.object({
     .min(1)
     .max(100)
     .default(20)
-    .describe("Maximum number of overdue reminders to return"),
+    .describe("Maximum overdue entries to return (sorted most-overdue-first)."),
 });
 
 interface OverdueEntry {
@@ -55,6 +53,7 @@ interface OverdueEntry {
 }
 
 interface OverdueResult {
+  form_id: number;
   total_overdue: number;
   returned: number;
   overdue: OverdueEntry[];
@@ -72,7 +71,7 @@ interface ReminderRecord {
   LeadFormName?: string | null;
 }
 
-interface ReminderResponse {
+interface ReminderEnvelope {
   message?: {
     reminder?: {
       due?: ReminderRecord[];
@@ -90,18 +89,27 @@ function daysBetween(dateStr: string, today: Date): number {
 export const getOverdueLeadsTool: ToolDefinition<typeof schema, OverdueResult> =
   {
     name: "get_overdue_leads",
-    title: "Get Overdue Leads",
+    title: "Get overdue leads — pending reminders past their follow-up date",
     description:
-      "Lists leads with pending follow-up reminders whose due date has passed. " +
-      "Use this to answer: Which leads need immediate attention? Who has " +
-      "follow-ups that are 3+ days overdue? Source of truth is pending " +
-      "reminders (not a stale follow_up_date on the lead record).",
+      "Returns leads whose pending follow-up reminders are past due. Each entry includes the " +
+      "reminder_id (pair with mark_reminder_done), lead_id, lead_name, phone, email, original " +
+      "follow_up_date, days_overdue (computed locally vs today), current pipeline stage, " +
+      "assignee name, and form name. " +
+      "\n\nUNDERSTANDING THE FLOW: A reminder is created with status=0; once acted on it flips " +
+      "to status=1. The backend's `/getLeadReminder` endpoint already filters to status=0 and " +
+      "buckets results by date. This tool surfaces only the `due` bucket and adds a " +
+      "min_days_overdue floor so you can ask for 'anything 3+ days overdue'. Non-admin callers " +
+      "are scoped server-side to leads they are assigned to. " +
+      "\n\nUSE THIS TOOL TO: build an SLA-breach worklist, prioritise the day's outreach, or " +
+      "answer 'who's slipping?' For today + upcoming reminders use get_lead_follow_ups; for " +
+      "reminders on one specific lead use get_lead_reminders.",
     inputSchema: schema,
     annotations: { readOnlyHint: true, idempotentHint: true },
     meta: { version: "2.0.0", tags: ["analytics", "leads", "follow-up"] },
 
     handler: async (input, ctx) => {
-      const res = await apiPost<ReminderResponse>(`${SERVICE.LEADS}/getLeadReminder`,
+      const res = await apiPost<ReminderEnvelope>(
+        `${SERVICE.LEADS}/getLeadReminder`,
         { form_id: input.form_id },
         ctx,
       );
@@ -125,7 +133,7 @@ export const getOverdueLeadsTool: ToolDefinition<typeof schema, OverdueResult> =
           email: r.email ?? "",
           follow_up_date: followUp,
           days_overdue: days,
-          stage: r.pipeline_char ?? "unknown",
+          stage: r.pipeline_char ?? "",
           assigned_to_name: r.assigned_to_name ?? "Unassigned",
           form_name: r.LeadFormName ?? null,
         });
@@ -135,6 +143,7 @@ export const getOverdueLeadsTool: ToolDefinition<typeof schema, OverdueResult> =
       const limited = overdue.slice(0, input.limit);
 
       return {
+        form_id: input.form_id,
         total_overdue: overdue.length,
         returned: limited.length,
         overdue: limited,
