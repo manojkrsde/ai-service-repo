@@ -20,6 +20,7 @@ export const SERVICE = {
   LEADS: "/api/leadService",
   USERS: "/api/userService",
   ATTENDANCE: "/api/attendanceService",
+  CALL_LOGS: "/api/callLogsService",
 } as const;
 
 /**
