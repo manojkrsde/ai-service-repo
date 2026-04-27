@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
+import { McpToolLogs } from "../../models/McpToolLogs.js";
 import {
   executeTool,
   toMcpTool,
@@ -44,6 +45,7 @@ function bindTool(
   const { name, config } = toMcpTool(def);
 
   server.registerTool(name, config, async (rawInput: unknown) => {
+    const start = Date.now();
     const ctx: ToolContext = {
       sessionAuth: auth,
       companyId: auth.companyId,
@@ -51,6 +53,17 @@ function bindTool(
       userId: auth.userId,
     };
     const outcome = await executeTool(name, rawInput, ctx);
+
+    void McpToolLogs.record({
+      user_id: auth.userId,
+      email: auth.email,
+      tool_name: name,
+      client_id: auth.clientName,
+      status: outcome.ok ? "success" : "error",
+      error_code: outcome.ok ? null : outcome.code,
+      duration_ms: Date.now() - start,
+    });
+
     return toCallToolResult(outcome);
   });
 }

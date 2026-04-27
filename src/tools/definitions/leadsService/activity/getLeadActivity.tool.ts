@@ -1,13 +1,16 @@
 /**
- * Answers: "What's happened on lead [ID]? Show me the activity log."
+ * Returns the chronological activity timeline for a single lead.
  *
- * Dedicated wrapper on `/getLeadActivities` — faster for the LLM than
- * pulling full details via `get_lead_details` when only the timeline
- * is needed.
+ * Wraps POST /getLeadActivities. Backend middleware is strict — it accepts
+ * only signature + lead_id, so company context is suppressed. Backend
+ * pre-groups results by date (groupByDateAndType) merging call logs and
+ * lead_activities rows (notes added, stage changes, follow-ups, priority
+ * changes, etc.). The shape is opaque enough that we surface it as `groups`
+ * for the LLM to render directly.
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -16,89 +19,54 @@ const schema = z.object({
     .number()
     .int()
     .positive()
-    .describe("The internal CRM ID of the lead whose activity to fetch"),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(200)
-    .default(50)
-    .describe("Maximum number of activity entries to return (most recent first)"),
+    .describe("The internal CRM ID of the lead whose timeline to fetch."),
 });
-
-interface ActivityEntry {
-  id: number;
-  activity: string;
-  description: string;
-  activity_type: string;
-  created_at: string;
-  created_by: number | null;
-  created_by_name: string;
-}
 
 interface ActivityResult {
   lead_id: number;
-  total_activities: number;
-  returned: number;
-  activities: ActivityEntry[];
-}
-
-interface RawActivity {
-  id?: number;
-  activity?: string;
-  description?: string;
-  activity_type?: string;
-  created_at?: string;
-  created_by?: number | null;
-  created_by_name?: string;
+  groups: unknown;
 }
 
 interface ActivityResponse {
-  data?: RawActivity[];
+  data: {
+    data: unknown;
+  };
 }
 
-export const getLeadActivityTool: ToolDefinition<
-  typeof schema,
-  ActivityResult
-> = {
-  name: "get_lead_activity",
-  title: "Get Lead Activity",
-  description:
-    "Returns the chronological activity log for a single lead — stage changes, " +
-    "assignments, notes, calls, and other tracked events. " +
-    "Use when the user asks: What happened to lead [X]? Show me the activity on this lead.",
-  inputSchema: schema,
-  annotations: { readOnlyHint: true, idempotentHint: true },
-  meta: { version: "1.0.0", tags: ["leads", "activity"] },
+export const getLeadActivityTool: ToolDefinition<typeof schema, ActivityResult> =
+  {
+    name: "get_lead_activity",
+    title:
+      "Get lead activity timeline — calls + notes + stage changes grouped by date",
+    description:
+      "Returns the merged activity timeline for one lead — call logs, notes, follow-up " +
+      "creations, stage changes, and priority changes — grouped server-side by date and event " +
+      "type. Each group is a date bucket containing items with createdAt, title, description, " +
+      "icon, color, and the actor (`acitivityBy: { name, image }`). " +
+      "\n\nUNDERSTANDING THE FLOW: Activity entries are written automatically by other tools " +
+      "(log_call_for_lead, add_note_to_lead, update_lead, move_lead_to_stage). They cannot be " +
+      "edited or deleted from this surface. The shape of `groups` is opaque (backend renders " +
+      "it for the dashboard) — surface it to the user as a chronological feed. " +
+      "\n\nUSE THIS TOOL TO: build a 'what's happened on lead X' view, audit a single lead's " +
+      "history, or pull the activity feed for narration. For the lead profile + activity in one " +
+      "call, use get_lead_details (which already returns this and notes/calls in parallel).",
+    inputSchema: schema,
+    annotations: { readOnlyHint: true, idempotentHint: true },
+    meta: { version: "2.0.0", tags: ["leads", "activity"] },
 
-  handler: async (input, ctx) => {
-    const res = await leadsPost<ActivityResponse>(
-      "/getLeadActivities",
-      { lead_id: input.lead_id },
-      ctx,
-    );
+    handler: async (input, ctx) => {
+      const res = await apiPost<ActivityResponse>(
+        `${SERVICE.LEADS}/getLeadActivities`,
+        { lead_id: input.lead_id },
+        ctx,
+        { injectCompanyContext: false },
+      );
 
-    const raw = res.data ?? [];
-    const mapped: ActivityEntry[] = raw.map((a) => ({
-      id: a.id ?? 0,
-      activity: a.activity ?? "",
-      description: a.description ?? "",
-      activity_type: a.activity_type ?? "unknown",
-      created_at: a.created_at ?? "",
-      created_by: a.created_by ?? null,
-      created_by_name: a.created_by_name ?? "Unknown",
-    }));
-
-    mapped.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-    const limited = mapped.slice(0, input.limit);
-
-    return {
-      lead_id: input.lead_id,
-      total_activities: mapped.length,
-      returned: limited.length,
-      activities: limited,
-    };
-  },
-};
+      return {
+        lead_id: input.lead_id,
+        groups: res.data?.data ?? [],
+      };
+    },
+  };
 
 toolRegistry.register(getLeadActivityTool);

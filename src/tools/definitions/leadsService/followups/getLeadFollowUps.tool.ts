@@ -1,19 +1,17 @@
-// AUDIT (v1):
-// - Verdict: KEEP
-// - Correctly wraps `/getLeadReminder`; sort into today/overdue/upcoming
-//   is accurate.
-// - Access: backend scopes by caller role (non-admin gets only their
-//   assigned leads' reminders).
-
 /**
- * Answers: "What follow-ups do I have today? Which leads am I behind on?"
+ * Pending follow-up reminders for a form, bucketed today / overdue / upcoming.
  *
- * Calls /getLeadReminder which returns reminders pre-sorted into
- * today, due (overdue), and upcoming buckets.
+ * Wraps POST /getLeadReminder. Backend middleware requires
+ * signature + form_id; company_id / company_type / limit / offset are
+ * optional. Backend filters reminders to status=0 and pre-buckets them
+ * by date relative to today.
+ *
+ * Response envelope is custom_message-wrapped:
+ *   { message: { message: "Data Found", reminder: { today, due, upcoming, totalCount } } }
  */
 import { z } from "zod";
 
-import { leadsPost } from "../../../../helpers/leads.client.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
 import type { ToolDefinition } from "../../../../types/tool.types.js";
 import { toolRegistry } from "../../../registry.js";
 
@@ -23,13 +21,13 @@ const schema = z.object({
     .int()
     .positive()
     .describe(
-      "The form ID to filter follow-ups for. Use list_forms to discover available forms.",
+      "Lead form ID to scope reminders to. Use list_forms to discover form IDs.",
     ),
   filter: z
     .enum(["all", "today", "overdue", "upcoming"])
     .default("all")
     .describe(
-      "Which reminders to return: today's only, overdue only, upcoming only, or all pending",
+      "Which bucket to return. 'all' returns overdue + today + upcoming concatenated (overdue first).",
     ),
   limit: z
     .number()
@@ -37,7 +35,7 @@ const schema = z.object({
     .min(1)
     .max(100)
     .default(20)
-    .describe("Maximum number of follow-ups to return"),
+    .describe("Maximum follow-ups to return after bucket filtering."),
 });
 
 interface FollowUpEntry {
@@ -54,6 +52,7 @@ interface FollowUpEntry {
 }
 
 interface FollowUpsResult {
+  form_id: number;
   filter: string;
   total_found: number;
   follow_ups: FollowUpEntry[];
@@ -71,7 +70,7 @@ interface ReminderRecord {
   LeadFormName?: string | null;
 }
 
-interface ReminderResponse {
+interface ReminderEnvelope {
   message?: {
     reminder?: {
       today?: ReminderRecord[];
@@ -82,7 +81,10 @@ interface ReminderResponse {
   };
 }
 
-function mapReminder(r: ReminderRecord, bucket: "today" | "overdue" | "upcoming"): FollowUpEntry {
+function mapReminder(
+  r: ReminderRecord,
+  bucket: "today" | "overdue" | "upcoming",
+): FollowUpEntry {
   return {
     reminder_id: r.reminder_id ?? 0,
     lead_id: r.key ?? 0,
@@ -90,7 +92,7 @@ function mapReminder(r: ReminderRecord, bucket: "today" | "overdue" | "upcoming"
     phone: r.mobile_no ?? "",
     email: r.email ?? "",
     follow_up_date: r.follow_up_date ?? "",
-    stage: r.pipeline_char ?? "unknown",
+    stage: r.pipeline_char ?? "",
     assigned_to_name: r.assigned_to_name ?? "Unassigned",
     form_name: r.LeadFormName ?? null,
     bucket,
@@ -102,42 +104,52 @@ export const getLeadFollowUpsTool: ToolDefinition<
   FollowUpsResult
 > = {
   name: "get_lead_follow_ups",
-  title: "Get Lead Follow-Ups",
+  title:
+    "Get lead follow-ups — pending reminders bucketed today / overdue / upcoming",
   description:
-    "Lists pending follow-up reminders for leads, sorted into today's, overdue, and upcoming buckets. " +
-    "Use this when the user asks: What follow-ups do I have today? Which leads am I behind on? " +
-    "Show me my overdue reminders. What's due this week?",
+    "Returns pending follow-up reminders for one form, sorted into three date buckets by the " +
+    "backend: today (due today), overdue (already past), upcoming (future). Each entry " +
+    "includes reminder_id (chain into mark_reminder_done), lead_id, lead_name, phone, email, " +
+    "follow_up_date, current stage, assignee name, and form name. " +
+    "\n\nUNDERSTANDING THE FLOW: Reminders are status=0 (pending) rows linked to leads. The " +
+    "backend buckets them by date. Non-admin callers are auto-scoped to their own assigned " +
+    "leads' reminders. " +
+    "\n\nUSE THIS TOOL TO: build a 'today's follow-ups', 'I'm behind on X' or 'next week' " +
+    "view; pair with mark_reminder_done to close items as they're handled. For overdue-only " +
+    "with a min-days threshold use get_overdue_leads. For one specific lead's reminders use " +
+    "get_lead_reminders.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
-  meta: { version: "1.0.0", tags: ["leads", "follow-up", "reminders"] },
+  meta: { version: "2.0.0", tags: ["leads", "follow-up", "reminders"] },
 
   handler: async (input, ctx) => {
-    const res = await leadsPost<ReminderResponse>(
-      "/getLeadReminder",
+    const res = await apiPost<ReminderEnvelope>(
+      `${SERVICE.LEADS}/getLeadReminder`,
       { form_id: input.form_id },
       ctx,
     );
 
     const reminder = res.message?.reminder ?? {};
-    const todayList = (reminder.today ?? []).map((r) => mapReminder(r, "today"));
-    const overdueList = (reminder.due ?? []).map((r) => mapReminder(r, "overdue"));
-    const upcomingList = (reminder.upcoming ?? []).map((r) => mapReminder(r, "upcoming"));
+    const todayList = (reminder.today ?? []).map((r) =>
+      mapReminder(r, "today"),
+    );
+    const overdueList = (reminder.due ?? []).map((r) =>
+      mapReminder(r, "overdue"),
+    );
+    const upcomingList = (reminder.upcoming ?? []).map((r) =>
+      mapReminder(r, "upcoming"),
+    );
 
     let combined: FollowUpEntry[];
-
-    if (input.filter === "today") {
-      combined = todayList;
-    } else if (input.filter === "overdue") {
-      combined = overdueList;
-    } else if (input.filter === "upcoming") {
-      combined = upcomingList;
-    } else {
-      combined = [...overdueList, ...todayList, ...upcomingList];
-    }
+    if (input.filter === "today") combined = todayList;
+    else if (input.filter === "overdue") combined = overdueList;
+    else if (input.filter === "upcoming") combined = upcomingList;
+    else combined = [...overdueList, ...todayList, ...upcomingList];
 
     const limited = combined.slice(0, input.limit);
 
     return {
+      form_id: input.form_id,
       filter: input.filter,
       total_found: combined.length,
       follow_ups: limited,

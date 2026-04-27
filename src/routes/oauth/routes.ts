@@ -21,6 +21,7 @@ import { StatusCodes } from "http-status-codes";
 import axiosInstance from "../../utils/axios.instance.js";
 import config from "../../config/env.js";
 import logger from "../../config/logger.js";
+import { authLimiter } from "../../config/rateLimit.js";
 import { slugifyClientName } from "../../helpers/slug.helper.js";
 import * as oauthRepo from "../../repositories/oauth.repository.js";
 import {
@@ -29,6 +30,7 @@ import {
   markAuthCodeUsed,
   createAccessToken,
 } from "../../services/oauthStore.service.js";
+import { resolveUserAuth } from "../../helpers/api.client.js";
 import { parseAxiosError } from "../../helpers/axiosError.helper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -103,7 +105,7 @@ router.get("/authorize", (_req, res) => {
     .sendFile(path.join(__dirname, "public", "authorize.html"));
 });
 
-router.post("/proxy/login", async (req, res) => {
+router.post("/proxy/login", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(
@@ -126,7 +128,7 @@ router.post("/proxy/login", async (req, res) => {
   }
 });
 
-router.post("/proxy/verify-otp", async (req, res) => {
+router.post("/proxy/verify-otp", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(
@@ -149,7 +151,7 @@ router.post("/proxy/verify-otp", async (req, res) => {
   }
 });
 
-router.post("/proxy/resend-otp", async (req, res) => {
+router.post("/proxy/resend-otp", authLimiter, async (req, res) => {
   try {
     const apiGatewayUrl = config.services.apiGateway;
     const response = await axiosInstance.post(
@@ -269,6 +271,39 @@ router.post("/token", async (req, res) => {
   const client = await oauthRepo.findClientById(authCode.clientId);
   const clientNameSlug = client?.client_name_slug ?? "mcp-client";
 
+  /**
+   * Resolve backend credentials from user-services.
+   *
+   * resolveUserAuth is called EXACTLY ONCE per login — here, during the
+   * OAuth code exchange. The resulting JWT + signature are stored directly
+   * in mcp_access_tokens and served on every subsequent MCP request from
+   * that row alone. No backend auth calls happen during normal operation.
+   *
+   * On a backend 401 the token is revoked, getAccessToken() returns undefined,
+   * and Claude receives HTTP 401 + WWW-Authenticate → re-opens login page.
+   */
+  let cachedJwt: string;
+  let cachedSignature: string;
+  try {
+    const resolved = await resolveUserAuth({
+      email: authCode.email,
+      clientName: clientNameSlug,
+    });
+    cachedJwt = resolved.jwtToken;
+    cachedSignature = resolved.signature;
+  } catch (authErr) {
+    logger.error(
+      { err: authErr, email: authCode.email },
+      "Failed to resolve backend credentials during token exchange",
+    );
+    res.status(StatusCodes.BAD_GATEWAY).json({
+      error: "server_error",
+      error_description:
+        "Could not resolve backend credentials. Please try logging in again.",
+    });
+    return;
+  }
+
   const tokenRecord = await createAccessToken({
     email: authCode.email,
     userId: authCode.userId,
@@ -277,7 +312,14 @@ router.post("/token", async (req, res) => {
     roleChar: authCode.roleChar,
     clientId: authCode.clientId,
     clientNameSlug,
+    cachedJwt,
+    cachedSignature,
   });
+
+  logger.info(
+    { email: authCode.email, clientNameSlug },
+    "MCP access token issued with backend credentials",
+  );
 
   res.status(StatusCodes.OK).json({
     access_token: tokenRecord.token,

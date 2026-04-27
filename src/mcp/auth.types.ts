@@ -7,4 +7,5 @@ export interface SessionAuth {
   clientName: string;
   cachedToken: string;
   cachedSignature: string;
+  accessToken: string;
 }
