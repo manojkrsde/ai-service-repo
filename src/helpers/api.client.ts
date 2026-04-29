@@ -21,6 +21,10 @@ export const SERVICE = {
   USERS: "/api/userService",
   ATTENDANCE: "/api/attendanceService",
   CALL_LOGS: "/api/callLogsService",
+  TODO: "/api/todoService",
+  ERS: "/api/ers",
+  ASSETS: "/api/assetService",
+  ACTIVITY_CALENDAR: "/api/activityCalendarService",
 } as const;
 
 /**
