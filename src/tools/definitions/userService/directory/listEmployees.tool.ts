@@ -6,9 +6,9 @@
  */
 import { z } from "zod";
 
-import { SERVICE, apiPost } from "../../../helpers/api.client.js";
-import type { ToolDefinition } from "../../../types/tool.types.js";
-import { toolRegistry } from "../../registry.js";
+import { SERVICE, apiPost } from "../../../../helpers/api.client.js";
+import type { ToolDefinition } from "../../../../types/tool.types.js";
+import { toolRegistry } from "../../../registry.js";
 
 const schema = z.object({
   department: z

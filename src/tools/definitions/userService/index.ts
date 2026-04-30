@@ -1,2 +1,2 @@
-export * from "./listDepartments.tool.js";
-export * from "./listEmployees.tool.js";
+export * from "./directory/index.js";
+export * from "./orgStructure/index.js";
