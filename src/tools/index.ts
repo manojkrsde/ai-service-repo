@@ -7,6 +7,7 @@ import "./definitions/callLogsService/index.js"; // Call-logs service (all group
 import "./definitions/employeeReportingService/index.js"; // Employee reporting service (all groups)
 import "./definitions/todoService/index.js"; // Todo Service (all groups)
 import "./definitions/assetsService/index.js"; // Asset Service (all groups)
+import "./definitions/activityCalendarService/index.js"; // Activity Calendar ( all groups)
 
 export { toolRegistry } from "./registry.js";
 export { executeTool } from "./executor.js";
