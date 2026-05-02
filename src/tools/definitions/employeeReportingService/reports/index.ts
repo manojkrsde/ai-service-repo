@@ -3,3 +3,4 @@ export * from "./getMyReportStats.tool.js";
 export * from "./getUpcomingReports.tool.js";
 export * from "./listReportTemplates.tool.js";
 export * from "./listReportTypes.tool.js";
+export * from "./submitEmployeeReport.tool.js";
