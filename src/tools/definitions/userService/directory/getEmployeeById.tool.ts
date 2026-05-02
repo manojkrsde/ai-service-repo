@@ -87,7 +87,7 @@ export const getEmployeeByIdTool: ToolDefinition<typeof schema, EmployeeDetails>
     "\n• Answer 'who is user #123' or 'show me <person>'s profile' once the user_id is known" +
     "\n• Look up a manager / reporting officer before drafting an approval, escalation, or notification" +
     "\n• Verify someone is currently active before assigning work, leave, or assets to them" +
-    "\n• Pull DOB / DOJ for birthday or work-anniversary context (also see list_public_calendar_events)" +
+    "\n• Pull DOB / DOJ for birthday or work-anniversary context (also see list_calendar_events)" +
     "\n• Fetch a phone or email when the user asks how to contact someone" +
     "\n• Surface a profile picture URL for avatar rendering" +
     "\n\nNOTE:" +
