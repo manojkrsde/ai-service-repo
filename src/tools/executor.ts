@@ -1,7 +1,4 @@
-import {
-  type ToolContext,
-  type ToolOutcome,
-} from "../types/tool.types.js";
+import { type ToolContext, type ToolOutcome } from "../types/tool.types.js";
 import { toolRegistry } from "./registry.js";
 
 export async function executeTool(
@@ -31,7 +28,7 @@ export async function executeTool(
   }
 
   try {
-    const data = await def.handler(parsed.data, ctx);
+    const data = await def.handler(parsed.data, { ...ctx, invokedName: name });
     return { ok: true, data };
   } catch (cause) {
     return {
