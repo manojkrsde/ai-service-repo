@@ -57,13 +57,12 @@ export const getCalendarEventByIdTool: ToolDefinition<
   description:
     "Returns a single calendar event by numeric ID with all stored fields: title, description, " +
     "start/end dates, all-day flag, event_type, public/private flag, creator info, and timestamps. " +
-    "\n\nUSE THIS TOOL TO: drill into one event after list_public_calendar_events / " +
-    "list_calendar_events_by_type returned a list, verify event details before suggesting an " +
-    "edit, or fetch the full description text. " +
+    "\n\nUSE THIS TOOL TO: drill into one event after list_calendar_events returned a list, " +
+    "verify event details before suggesting an edit, or fetch the full description text. " +
     "\n\nNOTE: Private events are only readable by their creator (server enforces — backend " +
     "returns 403 otherwise). Auto-generated birthday/anniversary entries have string IDs " +
     "(e.g. 'birthday_42') and CANNOT be fetched via this tool — they only exist in the " +
-    "synthesised list_public_calendar_events response.",
+    "synthesised list_calendar_events public-scope response.",
   inputSchema: schema,
   annotations: { readOnlyHint: true, idempotentHint: true },
   meta: { version: "1.0.0", tags: ["calendar", "events", "lookup"] },
