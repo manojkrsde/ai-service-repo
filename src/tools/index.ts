@@ -8,6 +8,7 @@ import "./definitions/employeeReportingService/index.js"; // Employee reporting 
 import "./definitions/todoService/index.js"; // Todo Service (all groups)
 import "./definitions/assetsService/index.js"; // Asset Service (all groups)
 import "./definitions/activityCalendarService/index.js"; // Activity Calendar ( all groups)
+import "./definitions/raiseTicketsService/index.js"; // Support-ticket service (all groups)
 
 export { toolRegistry } from "./registry.js";
 export { executeTool } from "./executor.js";

@@ -29,6 +29,7 @@ export interface AuthedPostOptions {
    * callers should disable injection and set the tenant keys themselves.
    */
   injectCompanyContext?: boolean;
+  companyContextKeyFormat?: "camel_case" | "snake_case";
 }
 
 const PERMISSION_SENTINEL = "PERMISSION_MISSING:";
@@ -46,6 +47,8 @@ export async function authedPost<T>(
   options: AuthedPostOptions = {},
 ): Promise<T> {
   const injectCompany = options.injectCompanyContext ?? true;
+  const companyContextKeyFormat =
+    options.companyContextKeyFormat ?? "snake_case";
 
   try {
     const res = await doPost(
@@ -56,6 +59,7 @@ export async function authedPost<T>(
       auth.companyId,
       auth.companyType,
       injectCompany,
+      companyContextKeyFormat,
     );
     return res.data as T;
   } catch (err: unknown) {
@@ -110,11 +114,17 @@ async function doPost(
   companyId: number,
   companyType: string,
   injectCompany: boolean,
+  companyContextKeyFormat: "camel_case" | "snake_case",
 ) {
   const requestBody: Record<string, unknown> = { ...body, signature };
   if (injectCompany) {
-    requestBody["company_id"] = companyId;
-    requestBody["company_type"] = companyType;
+    if (companyContextKeyFormat == "snake_case") {
+      requestBody["company_id"] = companyId;
+      requestBody["company_type"] = companyType;
+    } else if (companyContextKeyFormat == "camel_case") {
+      requestBody["companyId"] = companyId;
+      requestBody["companyType"] = companyType;
+    }
   }
 
   return axiosInstance.post(url, requestBody, {

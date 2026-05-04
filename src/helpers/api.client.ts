@@ -25,6 +25,10 @@ export const SERVICE = {
   ERS: "/api/ers",
   ASSETS: "/api/assetService",
   ACTIVITY_CALENDAR: "/api/activityCalendarService",
+  TASK: "/api/taskService",
+  TICKETS: "/api/raiseTicketsService",
+  AUTOMATIONS: "/api/automationsService",
+  DRIVE: "/api/driveService",
 } as const;
 
 /**
