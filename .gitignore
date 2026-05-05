@@ -1,7 +1,7 @@
 /node_modules
 .env
 logs.json
-package-lock.json
+logs/
 /.claude
 CLAUDE.md
 dist/
