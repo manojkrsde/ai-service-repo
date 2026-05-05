@@ -1,3 +1,4 @@
+export * from "./getCurrentUser.tool.js";
 export * from "./listEmployees.tool.js";
 export * from "./getEmployeeById.tool.js";
 export * from "./listChildCompanies.tool.js";
