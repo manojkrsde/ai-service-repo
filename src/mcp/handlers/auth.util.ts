@@ -48,5 +48,8 @@ export async function authorize(req: Request, res: Response) {
     return null;
   }
 
-  return buildSessionAuth(tokenRecord as AccessTokenSession, rawToken);
+  const auth = buildSessionAuth(tokenRecord as AccessTokenSession, rawToken);
+  res.locals["_userId"] = String(auth.userId);
+
+  return auth;
 }
