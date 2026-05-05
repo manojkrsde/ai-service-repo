@@ -9,6 +9,8 @@ import { generalLimiter } from "./config/rateLimit.js";
 import { stripTrailingSlash } from "./helpers/trailing.slash.js";
 import { requestLogger } from "./middlewares/request-logger.middleware.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/error-handler.js";
+import db from "./models/index.js";
+import { Op } from "sequelize";
 
 import router from "./routes/index.js";
 
@@ -54,6 +56,12 @@ const start = async (): Promise<void> => {
       },
       "Server started",
     );
+
+    // Fire-and-forget: clean request logs older than 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    db.RequestLogs.destroy({
+      where: { created_at: { [Op.lt]: thirtyDaysAgo } },
+    }).catch(() => {});
   });
 
   const shutdown = (signal: string): void => {

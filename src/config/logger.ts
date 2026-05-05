@@ -1,20 +1,27 @@
 import pino, { type Logger } from "pino";
-import pretty from "pino-pretty";
 import config from "./env.js";
 
-const prettyStream = pretty({
-  colorize: true,
-  translateTime: "SYS:HH:MM:ss",
-  ignore: "pid,hostname",
-  sync: true,
-});
+let prettyStream: pino.DestinationStream | undefined;
 
-const streams: pino.StreamEntry[] = config.app.isDev
+if (config.app.isDev) {
+  const pretty = (await import("pino-pretty")).default;
+  prettyStream = pretty({
+    colorize: true,
+    translateTime: "SYS:HH:MM:ss",
+    ignore: "pid,hostname",
+    sync: true,
+  });
+}
+
+const streams: pino.StreamEntry[] = prettyStream
   ? [
       { level: "trace", stream: prettyStream },
       { level: "error", stream: process.stderr },
     ]
-  : [{ level: "error", stream: process.stderr }];
+  : [
+      { level: config.logging.level, stream: process.stdout },
+      { level: "error", stream: process.stderr },
+    ];
 
 const logger: Logger = pino(
   {

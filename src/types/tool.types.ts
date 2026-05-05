@@ -15,6 +15,7 @@ export interface ToolContext {
   companyId?: number;
   companyType?: string;
   userId?: number;
+  invokedName?: string;
 }
 
 export type ToolInputSchema = z.ZodObject<z.ZodRawShape>;
@@ -29,6 +30,7 @@ export interface ToolDefinition<
   inputSchema: TSchema;
   annotations?: ToolAnnotations;
   meta?: Record<string, unknown>;
+  aliases?: readonly string[];
   handler: (input: z.infer<TSchema>, ctx: ToolContext) => Promise<TOutput>;
 }
 

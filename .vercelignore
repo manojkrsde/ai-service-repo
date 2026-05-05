@@ -1,0 +1,5 @@
+dist
+.claude
+CLAUDE.md
+*.md
+!README.md

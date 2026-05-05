@@ -124,6 +124,13 @@ export const globalErrorHandler: ErrorRequestHandler = (
 
   logBySeverity(serialized);
 
+  // Stash error info for the request logger DB write (fire-and-forget).
+  // Never stash tokens, signatures, passwords — only the error message/stack.
+  res.locals["_errorMessage"] = serialized.message;
+  if (serialized.stack !== undefined) {
+    res.locals["_errorStack"] = serialized.stack;
+  }
+
   const body: ErrorResponse = {
     success: false,
     errorId: serialized.errorId,
